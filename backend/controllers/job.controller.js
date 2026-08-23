@@ -13,11 +13,20 @@ export const postJob = async (req, res) => {
       experience,
       position,
       companyId,
+      logo,
     } = req.body;
     const userId = req.id;
 
     if (
-      !title || !description || !requirements || !salary || !location || !jobType || !experience || !position || !companyId
+      !title ||
+      !description ||
+      !requirements ||
+      !salary ||
+      !location ||
+      !jobType ||
+      !experience ||
+      !position ||
+      !companyId
     ) {
       return res.status(400).json({
         message: "Something is missing.",
@@ -35,6 +44,7 @@ export const postJob = async (req, res) => {
       position,
       company: companyId,
       created_by: userId,
+      logo,
     });
     return res.status(201).json({
       message: "New job created successfully.",
@@ -56,9 +66,11 @@ export const getAllJob = async (req, res) => {
         { description: { $regex: keyword, $options: "i" } },
       ],
     };
-    const jobs = await Job.find(query).populate({
-      path: "company"
-    }).sort({createdAt:-1});
+    const jobs = await Job.find(query)
+      .populate({
+        path: "company",
+      })
+      .sort({ createdAt: -1 });
     if (!jobs) {
       return res.status(404).json({
         message: "Jobs not found.",

@@ -42,6 +42,9 @@ const jobSchema = new mongoose.Schema({
         ref:'User',
         required:true
     },
+    logo:{
+        type:String
+    },
     applications:[
         {
             type:mongoose.Schema.Types.ObjectId,

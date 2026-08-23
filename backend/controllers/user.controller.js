@@ -1,6 +1,11 @@
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
+import axios from "axios";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 export const register = async (req, res) => {
   try {
@@ -95,8 +100,8 @@ export const login = async (req, res) => {
       .status(200)
       .cookie("token", token, {
         maxAge: 1 * 24 * 60 * 60 * 1000,
-        httpsOnly: true,
-        sameSite: "strict",
+        httpOnly: true,
+        sameSite: "lax",
       })
       .json({
         message: `Welcome back ${user.fullname}`,
@@ -130,7 +135,7 @@ export const logout = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const { fullname, email, phoneNumber, bio, skills } = req.body;
-    const file = req.file;
+
     // if (!fullname || !email || !phonenumber || !bio || !skills) {
     //   return res.status(400).json({
     //     message: "Something is missing",
@@ -140,8 +145,17 @@ export const updateProfile = async (req, res) => {
 
     // Cloudinary will come here
     let skillsArray;
-    if(skills){
-        skillsArray = skills.split(",");
+    if (skills) {
+      skillsArray = Array.isArray(skills)
+        ? skills
+        : skills.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    }
+    // Ensure the request contains an authenticated user ID
+    if (!req.id) {
+      return res.status(401).json({
+        message: "Unauthorized: missing user ID.",
+        success: false,
+      });
     }
     const userId = req.id; // Middleware authentication
     let user = await User.findById(userId);
@@ -154,9 +168,18 @@ export const updateProfile = async (req, res) => {
     }
 
     // Updating data
-    if(fullname) user.fullname = fullname
-    if(email) user.email = email
-    if(phoneNumber) user.phoneNumber = phoneNumber
+    if (fullname) user.fullname = fullname;
+    if (email && email !== user.email) {
+      const existingEmailUser = await User.findOne({ email });
+      if (existingEmailUser) {
+        return res.status(400).json({
+          message: "Email is already in use by another account.",
+          success: false,
+        });
+      }
+      user.email = email;
+    }
+    if (phoneNumber) user.phoneNumber = phoneNumber;
     if(bio) user.profile.bio = bio
     if(skills) user.profile.skills = skillsArray
     
@@ -187,3 +210,448 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
+
+export const analyzeResume = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded.",
+        success: false,
+      });
+    }
+
+    const dataBuffer = req.file.buffer;
+    const parsedData = await pdf(dataBuffer);
+    const text = parsedData.text.toLowerCase();
+
+    // Target tech keywords
+    const keywordsList = [
+      "react", "typescript", "javascript", "node.js", "express", 
+      "mongodb", "html", "css", "next.js", "nextjs", "aws", "docker", 
+      "kubernetes", "git", "python", "sql", "graphql", "tailwind", 
+      "redux", "figma", "agile", "devops", "ci/cd"
+    ];
+
+    const found = [];
+    const missing = [];
+
+    keywordsList.forEach((kw) => {
+      const regex = new RegExp(`\\b${kw}\\b`, 'i');
+      if (regex.test(text) || text.includes(kw)) {
+        found.push(kw.charAt(0).toUpperCase() + kw.slice(1));
+      } else {
+        missing.push(kw.charAt(0).toUpperCase() + kw.slice(1));
+      }
+    });
+
+    const totalKeywords = keywordsList.length;
+    const score = Math.round((found.length / totalKeywords) * 100);
+
+    const strengths = [];
+    const weaknesses = [];
+
+    if (found.length > 5) {
+      strengths.push("Excellent technical skill diversity.");
+    } else {
+      weaknesses.push("Add more technical keywords to match standard ATS profiles.");
+    }
+
+    if (text.includes("experience") || text.includes("work") || text.includes("history")) {
+      strengths.push("Clear professional experience section identified.");
+    } else {
+      weaknesses.push("Missing a clear 'Experience' or 'Work History' section.");
+    }
+
+    if (text.includes("education") || text.includes("degree") || text.includes("university") || text.includes("college")) {
+      strengths.push("Educational background clearly specified.");
+    } else {
+      weaknesses.push("Consider highlighting your educational degree or certificates.");
+    }
+
+    if (text.length > 1500) {
+      strengths.push("Comprehensive resume details with sufficient content.");
+    } else {
+      weaknesses.push("Your resume is quite short; consider adding more project details.");
+    }
+
+    return res.status(200).json({
+      success: true,
+      analysis: {
+        score,
+        strengths,
+        weaknesses,
+        keywords: {
+          found,
+          missing,
+        }
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const googleLogin = async (req, res) => {
+  try {
+    const { token, role, action } = req.body;
+    if (!token) {
+      return res.status(400).json({
+        message: "Google token is missing",
+        success: false,
+      });
+    }
+
+    // Fetch user info using Google Access Token
+    const googleUserRes = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const { email, name, picture } = googleUserRes.data;
+    if (!email) {
+      return res.status(400).json({
+        message: "Google profile has no email address configured.",
+        success: false
+      });
+    }
+
+    // Check for linking flow
+    const existingToken = req.cookies.token;
+    let loggedInUserId = null;
+    if (existingToken && action === 'link') {
+      try {
+        const decoded = jwt.verify(existingToken, process.env.SECRET_KEY);
+        loggedInUserId = decoded.userId;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    if (loggedInUserId) {
+      const existingLinkedUser = await User.findOne({
+        $or: [
+          { email: email },
+          { "profile.googleEmail": email }
+        ],
+        _id: { $ne: loggedInUserId }
+      });
+      if (existingLinkedUser) {
+        return res.status(400).json({
+          message: "This Google account is already linked to another user profile.",
+          success: false
+        });
+      }
+
+      const user = await User.findById(loggedInUserId);
+      if (!user) {
+        return res.status(400).json({ message: "User not found.", success: false });
+      }
+      user.profile.googleEmail = email;
+      await user.save();
+      return res.status(200).json({
+        message: "Google account linked successfully!",
+        user,
+        success: true
+      });
+    }
+
+    // Find user by email or profile.googleEmail
+    let user = await User.findOne({
+      $or: [
+        { email: email },
+        { "profile.googleEmail": email }
+      ]
+    });
+
+    if (!user) {
+      const randomPassword = Math.random().toString(36).slice(-10) + "A1!";
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      user = await User.create({
+        fullname: name || "Google User",
+        email,
+        phoneNumber: "0000000000",
+        password: hashedPassword,
+        role: role || "student",
+        profile: {
+          bio: "",
+          skills: [],
+          profilePhoto: picture || "",
+          googleEmail: email,
+        }
+      });
+    } else {
+      if (!user.profile.googleEmail) {
+        user.profile.googleEmail = email;
+        await user.save();
+      }
+    }
+
+    const tokenData = {
+      userId: user._id,
+    };
+    const jwtToken = jwt.sign(tokenData, process.env.SECRET_KEY, {
+      expiresIn: "1d",
+    });
+
+    return res
+      .status(200)
+      .cookie("token", jwtToken, {
+        maxAge: 1 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        sameSite: "lax",
+      })
+      .json({
+        message: `Welcome back ${user.fullname}`,
+        user,
+        success: true,
+      });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Google authentication failed",
+      success: false,
+    });
+  }
+};
+
+export const githubCallback = async (req, res) => {
+  try {
+    const { code, state } = req.query; // 'state' contains selected role (student or recruiter)
+    if (!code) {
+      return res.redirect("http://localhost:5173/auth?error=missing_code");
+    }
+
+    // Exchange auth code for access token
+    const tokenRes = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: process.env.GITHUB_REDIRECT_URI || "http://localhost:8000/api/v1/user/auth/github/callback",
+      },
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const accessToken = tokenRes.data.access_token;
+    if (!accessToken) {
+      return res.redirect("http://localhost:5173/auth?error=token_failed");
+    }
+
+    // Fetch user profile info from GitHub
+    const userProfileRes = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const { login, name, avatar_url } = userProfileRes.data;
+    let email = userProfileRes.data.email;
+
+    // Fetch user primary email if not visible in profile payload
+    if (!email) {
+      try {
+        const emailsRes = await axios.get("https://api.github.com/user/emails", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const primaryEmailObj = emailsRes.data.find((e) => e.primary);
+        email = primaryEmailObj ? primaryEmailObj.email : (emailsRes.data[0] ? emailsRes.data[0].email : null);
+      } catch (err) {
+        console.error("Failed to fetch email from GitHub list", err);
+      }
+    }
+
+    if (!email) {
+      email = `${login}@github.users.noreply.com`;
+    }
+
+    // Check for linking flow
+    const existingToken = req.cookies.token;
+    let loggedInUserId = null;
+    if (existingToken && state === 'link') {
+      try {
+        const decoded = jwt.verify(existingToken, process.env.SECRET_KEY);
+        loggedInUserId = decoded.userId;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    if (loggedInUserId) {
+      // Check if email is already on THIS user's profile (idempotent re-link after disconnect)
+      const currentUser = await User.findById(loggedInUserId);
+      if (currentUser && currentUser.profile.githubEmail === email) {
+        // Already linked to this user — treat as success
+        return res.redirect("http://localhost:5173/?link=github_success");
+      }
+
+      // Check if email is linked to a DIFFERENT user
+      const existingLinkedUser = await User.findOne({
+        $or: [
+          { email: email },
+          { "profile.githubEmail": email }
+        ],
+        _id: { $ne: loggedInUserId }
+      });
+      if (existingLinkedUser) {
+        return res.redirect("http://localhost:5173/?error=github_already_linked");
+      }
+
+      if (!currentUser) {
+        return res.redirect("http://localhost:5173/?error=user_not_found");
+      }
+      currentUser.profile.githubEmail = email;
+      await currentUser.save();
+      return res.redirect("http://localhost:5173/?link=github_success");
+    }
+
+    // Find user by email or profile.githubEmail
+    let user = await User.findOne({
+      $or: [
+        { email: email },
+        { "profile.githubEmail": email }
+      ]
+    });
+
+    if (!user) {
+      const randomPassword = Math.random().toString(36).slice(-10) + "A1!";
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      user = await User.create({
+        fullname: name || login || "GitHub User",
+        email,
+        phoneNumber: "0000000000",
+        password: hashedPassword,
+        role: state === "recruiter" ? "recruiter" : "student",
+        profile: {
+          bio: "",
+          skills: [],
+          profilePhoto: avatar_url || "",
+          githubEmail: email,
+        }
+      });
+    } else {
+      if (!user.profile.githubEmail) {
+        user.profile.githubEmail = email;
+        await user.save();
+      }
+    }
+
+    const tokenData = {
+      userId: user._id,
+    };
+    const jwtToken = jwt.sign(tokenData, process.env.SECRET_KEY, {
+      expiresIn: "1d",
+    });
+
+    res.cookie("token", jwtToken, {
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "lax",
+    });
+
+    return res.redirect("http://localhost:5173/");
+  } catch (error) {
+    console.log(error);
+    return res.redirect("http://localhost:5173/auth?error=github_failed");
+  }
+};
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const userId = req.id;
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+    return res.status(200).json({
+      user,
+      success: true,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+export const unlinkSocialAccount = async (req, res) => {
+  try {
+    const userId = req.id;
+    const { provider } = req.body;
+
+    if (!provider || (provider !== "google" && provider !== "github")) {
+      return res.status(400).json({
+        message: "Invalid provider specified",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+
+    if (provider === "google") {
+      if (!user.password && !user.profile.githubEmail) {
+        return res.status(400).json({
+          message: "You cannot disconnect Google as it is your only way to log in. Set up GitHub or a password first.",
+          success: false,
+        });
+      }
+      user.profile.googleEmail = undefined;
+    } else if (provider === "github") {
+      if (!user.password && !user.profile.googleEmail) {
+        return res.status(400).json({
+          message: "You cannot disconnect GitHub as it is your only way to log in. Set up Google or a password first.",
+          success: false,
+        });
+      }
+      user.profile.githubEmail = undefined;
+    }
+
+    await user.save();
+
+    const responseUser = {
+      _id: user._id,
+      fullname: user.fullname,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      profile: user.profile,
+    };
+
+    return res.status(200).json({
+      message: `${provider.charAt(0).toUpperCase() + provider.slice(1)} account unlinked successfully!`,
+      user: responseUser,
+      success: true,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+

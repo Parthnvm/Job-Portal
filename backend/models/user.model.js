@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
         unique:true
     },
     phoneNumber: {
-        type:Number,
+        type:String,
         required:true
     },
     password: {
@@ -31,7 +31,9 @@ const userSchema = new mongoose.Schema({
         profilePhoto:{
             type:String,
             default:""
-        }
+        },
+        googleEmail:{type:String},
+        githubEmail:{type:String}
     },
 }, {timestamps:true});
 
