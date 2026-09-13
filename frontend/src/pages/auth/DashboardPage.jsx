@@ -26,10 +26,11 @@ import { AIChatModal } from '../../components/common/AIChatModal';
 
 export const DashboardPage = () => {
   const { user } = useAuth();
-  const { jobs, applications, resumeAnalysis, roadmaps, interviewHistory } = useAppData();
+  const { jobs, externalJobs = [], applications, resumeAnalysis, roadmaps, interviewHistory } = useAppData();
   const navigate = useNavigate();
 
-  const recommendedJobs = jobs.slice(0, 3);
+  const allJobs = [...jobs, ...externalJobs];
+  const recommendedJobs = allJobs.slice(0, 3);
   const activeApplications = applications.slice(0, 3);
   const currentRoadmap = roadmaps["Full Stack Developer"];
 
@@ -179,7 +180,7 @@ export const DashboardPage = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {recommendedJobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard key={job._id || job.id} job={job} />
                 ))}
               </div>
             </div>

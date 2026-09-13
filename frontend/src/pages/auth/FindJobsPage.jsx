@@ -9,7 +9,7 @@ import { JobCard } from '../../components/jobs/JobCard';
 import { AIChatModal } from '../../components/common/AIChatModal';
 
 export const FindJobsPage = () => {
-  const { jobs } = useAppData();
+  const { jobs, externalJobs = [] } = useAppData();
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('search') || '';
 
@@ -20,36 +20,44 @@ export const FindJobsPage = () => {
   const [minMatch, setMinMatch] = useState(0);
   const [sortBy, setSortBy] = useState('best-match');
 
+  const allJobs = useMemo(() => [...jobs, ...externalJobs], [jobs, externalJobs]);
+
   const filteredJobs = useMemo(() => {
-    return jobs
+    return allJobs
       .filter((job) => {
+        const jobCompany = job.company || job.companyName || '';
+        const jobType = job.type || job.jobType || '';
+        const jobExperience = job.experience || '';
+        const jobSkills = job.skills || [];
+        const matchScore = job.matchScore || 0;
+        
         const matchesTitle =
           !titleQuery ||
           job.title.toLowerCase().includes(titleQuery.toLowerCase()) ||
-          job.company.toLowerCase().includes(titleQuery.toLowerCase()) ||
-          job.skills.some((s) => s.toLowerCase().includes(titleQuery.toLowerCase()));
+          jobCompany.toLowerCase().includes(titleQuery.toLowerCase()) ||
+          jobSkills.some((s) => s.toLowerCase().includes(titleQuery.toLowerCase()));
 
         const matchesLocation =
           !locationQuery || job.location.toLowerCase().includes(locationQuery.toLowerCase());
 
-        const matchesType = selectedType === 'All' || job.type === selectedType;
+        const matchesType = selectedType === 'All' || jobType === selectedType;
 
         const matchesExp =
           selectedExperience === 'All' ||
-          (selectedExperience === 'Freshers' && (job.experience.includes('0') || job.experience.includes('Freshers'))) ||
-          (selectedExperience === '1-3 Years' && (job.experience.includes('1') || job.experience.includes('2')));
+          (selectedExperience === 'Freshers' && (jobExperience.includes('0') || jobExperience.includes('Freshers'))) ||
+          (selectedExperience === '1-3 Years' && (jobExperience.includes('1') || jobExperience.includes('2')));
 
-        const matchesScore = job.matchScore >= minMatch;
+        const matchesScore = matchScore >= minMatch;
 
         return matchesTitle && matchesLocation && matchesType && matchesExp && matchesScore;
       })
       .sort((a, b) => {
-        if (sortBy === 'best-match') return b.matchScore - a.matchScore;
-        if (sortBy === 'ats') return b.atsCompatibility - a.atsCompatibility;
-        if (sortBy === 'latest') return new Date(b.postedDate) - new Date(a.postedDate);
+        if (sortBy === 'best-match') return (b.matchScore || 0) - (a.matchScore || 0);
+        if (sortBy === 'ats') return (b.atsCompatibility || 0) - (a.atsCompatibility || 0);
+        if (sortBy === 'latest') return new Date(b.postedDate || b.postedAt || 0) - new Date(a.postedDate || a.postedAt || 0);
         return 0;
       });
-  }, [jobs, titleQuery, locationQuery, selectedType, selectedExperience, minMatch, sortBy]);
+  }, [allJobs, titleQuery, locationQuery, selectedType, selectedExperience, minMatch, sortBy]);
 
   const resetFilters = () => {
     setTitleQuery('');
@@ -177,7 +185,7 @@ export const FindJobsPage = () => {
           {filteredJobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job._id || job.id} job={job} />
               ))}
             </div>
           ) : (

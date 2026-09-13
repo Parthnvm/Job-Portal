@@ -7,6 +7,8 @@ import userRoute from "./routes/user.routes.js"
 import companyRoute from "./routes/company.route.js"
 import jobRoute from "./routes/job.route.js"
 import applicationRoute from "./routes/application.route.js"
+import externalJobRoute from "./routes/externalJob.route.js"
+import { scheduleSyncLoop } from "./services/externalJobSync.js"
 
 dotenv.config({});
 
@@ -31,9 +33,13 @@ app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
 app.use("/api/v1/job", jobRoute);
 app.use("/api/v1/application", applicationRoute);
+app.use("/api/v1/external-jobs", externalJobRoute);
+app.use("/api/jobs", externalJobRoute);
 
 
 app.listen(PORT, () => {
   connectDB();
   console.log(`Server running at port ${PORT}`);
+  // Start external job sync loop (fetches from Adzuna periodically)
+  scheduleSyncLoop();
 });

@@ -153,18 +153,26 @@ export const Navbar = () => {
                         </Link>
                       </div>
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {notifications.slice(0, 3).map((n) => (
-                          <div
-                            key={n.id}
-                            className={`p-2.5 rounded-xl text-xs ${
-                              n.unread ? 'bg-brand-950/40 border border-brand-500/20' : 'bg-slate-800/40'
-                            }`}
-                          >
-                            <div className="font-medium text-slate-200">{n.title}</div>
-                            <div className="text-slate-400 mt-0.5">{n.message}</div>
-                            <div className="text-[10px] text-slate-500 mt-1">{n.time}</div>
+                        {notifications.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-6 text-center">
+                            <Bell className="w-8 h-8 text-slate-600 mb-2" />
+                            <p className="text-sm text-slate-400 font-medium">No notifications</p>
+                            <p className="text-xs text-slate-600 mt-0.5">You're all caught up!</p>
                           </div>
-                        ))}
+                        ) : (
+                          notifications.slice(0, 3).map((n) => (
+                            <div
+                              key={n.id}
+                              className={`p-2.5 rounded-xl text-xs ${
+                                n.unread ? 'bg-brand-950/40 border border-brand-500/20' : 'bg-slate-800/40'
+                              }`}
+                            >
+                              <div className="font-medium text-slate-200">{n.title}</div>
+                              <div className="text-slate-400 mt-0.5">{n.message}</div>
+                              <div className="text-[10px] text-slate-500 mt-1">{n.time}</div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}

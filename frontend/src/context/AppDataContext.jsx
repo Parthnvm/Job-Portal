@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import API from '../services/api';
 import { initialJobs } from '../data/mockJobs';
 import { defaultResumeData, defaultAnalysisResult } from '../data/mockResumeData';
 import { initialNotifications, mockRecruiterApplicants } from '../data/mockNotifications';
@@ -77,6 +78,32 @@ export const AppDataProvider = ({ children }) => {
   const [roadmaps, setRoadmaps] = useState(defaultRoadmaps);
   const [interviewHistory, setInterviewHistory] = useState(mockInterviewHistory);
   const [recruiterApplicants, setRecruiterApplicants] = useState(mockRecruiterApplicants);
+
+  // External jobs fetched from the backend (Adzuna via our API)
+  const [externalJobs, setExternalJobs] = useState([]);
+  const [externalJobsLoading, setExternalJobsLoading] = useState(false);
+  const [externalJobsError, setExternalJobsError] = useState(null);
+
+  const fetchExternalJobs = async (params = {}) => {
+    setExternalJobsLoading(true);
+    setExternalJobsError(null);
+    try {
+      const { data } = await API.get('/external-jobs/search', { params });
+      if (data.success) {
+        setExternalJobs(data.jobs);
+      }
+    } catch (err) {
+      console.warn('[AppDataContext] Could not fetch external jobs:', err.message);
+      setExternalJobsError('Could not load external jobs.');
+    } finally {
+      setExternalJobsLoading(false);
+    }
+  };
+
+  // Fetch external jobs on mount
+  useEffect(() => {
+    fetchExternalJobs();
+  }, []);
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -180,6 +207,10 @@ export const AppDataProvider = ({ children }) => {
     <AppDataContext.Provider
       value={{
         jobs,
+        externalJobs,
+        externalJobsLoading,
+        externalJobsError,
+        fetchExternalJobs,
         savedJobIds,
         applications,
         notifications,

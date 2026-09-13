@@ -9,9 +9,10 @@ import { JobCard } from '../../components/jobs/JobCard';
 import { AIChatModal } from '../../components/common/AIChatModal';
 
 export const AIRecommendationsPage = () => {
-  const { jobs } = useAppData();
+  const { jobs, externalJobs = [] } = useAppData();
 
-  const recommendations = jobs.map((j) => ({
+  const allJobs = [...jobs, ...externalJobs];
+  const recommendations = allJobs.map((j) => ({
     ...j,
     reasons: [
       "✓ React.js & JavaScript experience matched",
@@ -52,26 +53,46 @@ export const AIRecommendationsPage = () => {
 
           {/* Recommendation List */}
           <div className="space-y-6">
-            {recommendations.map((job) => (
-              <div key={job.id} className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                  <div className="flex items-center space-x-4">
-                    <img src={job.companyLogo} alt={job.company} className="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800 p-1" />
-                    <div>
-                      <h3 className="text-base font-bold text-white">{job.title}</h3>
-                      <p className="text-xs text-slate-400">{job.company} • {job.location}</p>
-                    </div>
-                  </div>
+            {recommendations.map((job) => {
+              const jobId = job._id || job.id;
+              const companyName = job.company || job.companyName || 'Company';
+              const isExternal = Boolean(job.provider || job.source);
+              const applyUrl = job.externalUrl || job.apply_url || job.source_url || '#';
 
-                  <div className="flex items-center space-x-3">
-                    <div className="px-4 py-1.5 rounded-full bg-emerald-950 text-emerald-400 font-extrabold text-sm border border-emerald-500/40">
-                      {job.matchScore}% AI Match
+              return (
+                <div key={jobId} className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div className="flex items-center space-x-4">
+                      {job.companyLogo ? (
+                        <img src={job.companyLogo} alt={companyName} className="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800 p-1 shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                          <span className="text-lg font-bold text-slate-400">
+                            {companyName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-base font-bold text-white">{job.title}</h3>
+                        <p className="text-xs text-slate-400">{companyName} • {job.location}</p>
+                      </div>
                     </div>
-                    <Link to={`/jobs/${job.id}`} className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold">
-                      View Job Match
-                    </Link>
+
+                    <div className="flex items-center space-x-3">
+                      <div className="px-4 py-1.5 rounded-full bg-emerald-950 text-emerald-400 font-extrabold text-sm border border-emerald-500/40">
+                        {job.matchScore || 85}% AI Match
+                      </div>
+                      {isExternal ? (
+                        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-1">
+                          <span>View & Apply</span>
+                        </a>
+                      ) : (
+                        <Link to={`/jobs/${jobId}`} className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold">
+                          View Job Match
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {/* Explanation block */}
                 <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs">
