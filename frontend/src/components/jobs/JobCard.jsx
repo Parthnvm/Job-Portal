@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, MapPin, Briefcase, DollarSign, Sparkles, CheckCircle2, ArrowRight, ExternalLink } from 'lucide-react';
+import { Bookmark, MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, ArrowRight, ExternalLink } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { useToast } from '../../context/ToastContext';
 import { ExternalJobBadge } from './ExternalJobBadge';
+import { formatSalaryDisplay } from '../../utils/currency';
 
 export const JobCard = ({ job }) => {
   const { savedJobIds, toggleSaveJob, applyToJob, applications } = useAppData();
@@ -14,7 +15,7 @@ export const JobCard = ({ job }) => {
   const providerName = (job.provider || job.source || '').toLowerCase();
   const isExternal = Boolean(job.isExternal || providerName === 'adzuna' || providerName === 'jooble');
   const companyDisplay = job.company || job.companyName || '';
-  const salaryDisplay = job.salary || job.salaryDisplay || '';
+  const salaryDisplay = formatSalaryDisplay(job.salaryDisplay || job.salary, '');
   const skillsList = job.skills || [];
   const applyUrl = job.externalUrl || job.apply_url || job.source_url || '#';
 
@@ -122,7 +123,7 @@ export const JobCard = ({ job }) => {
           </div>
           {salaryDisplay && (
             <div className="flex items-center space-x-1.5 truncate col-span-2">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <IndianRupee className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="font-semibold text-emerald-300">{salaryDisplay}</span>
             </div>
           )}

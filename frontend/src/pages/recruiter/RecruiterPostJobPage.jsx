@@ -20,7 +20,7 @@ export const RecruiterPostJobPage = () => {
     location: 'Bengaluru / Hybrid',
     type: 'Full-Time',
     experience: '1-3 Years',
-    salary: '₹14 LPA - ₹20 LPA',
+    salary: '₹14,00,000 - ₹20,00,000 / yr',
     description: 'We are looking for a skilled MERN Stack engineer to build real-time dashboard microservices and web interfaces.',
     responsibilities: 'Build REST APIs with Express & MongoDB; Implement responsive React components; Write unit and integration tests.',
     qualifications: 'B.Tech/BE in CS or equivalent experience with React and Node.js.',

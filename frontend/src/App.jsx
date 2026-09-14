@@ -203,17 +203,17 @@ function Header({ title, children }) {
     </div>;
 }
 const cashFlowData = [
-  { m: "Jan", income: 5200, expenses: 3800 },
-  { m: "Feb", income: 4800, expenses: 4100 },
-  { m: "Mar", income: 6200, expenses: 3600 },
-  { m: "Apr", income: 5800, expenses: 4200 },
-  { m: "May", income: 7100, expenses: 3900 },
-  { m: "Jun", income: 6500, expenses: 4400 },
-  { m: "Jul", income: 8200, expenses: 4100 },
-  { m: "Aug", income: 7600, expenses: 3700 },
-  { m: "Sep", income: 8900, expenses: 4600 },
-  { m: "Oct", income: 9200, expenses: 4200 },
-  { m: "Nov", income: 8700, expenses: 5100 }
+  { m: "Jan", income: 431600, expenses: 315400 },
+  { m: "Feb", income: 398400, expenses: 340300 },
+  { m: "Mar", income: 514600, expenses: 298800 },
+  { m: "Apr", income: 481400, expenses: 348600 },
+  { m: "May", income: 589300, expenses: 323700 },
+  { m: "Jun", income: 539500, expenses: 365200 },
+  { m: "Jul", income: 680600, expenses: 340300 },
+  { m: "Aug", income: 630800, expenses: 307100 },
+  { m: "Sep", income: 738700, expenses: 381800 },
+  { m: "Oct", income: 763600, expenses: 348600 },
+  { m: "Nov", income: 722100, expenses: 423300 }
 ];
 const catData = [
   { name: "Housing", value: 45, color: "#7c6af7" },
@@ -222,16 +222,16 @@ const catData = [
   { name: "Entertainment", value: 15, color: "#fb923c" }
 ];
 const RECENT_TX = [
-  { name: "AWS Services", cat: "Infrastructure", amt: -1245, status: "Completed", date: "Oct 24" },
-  { name: "Google Ads", cat: "Marketing", amt: -860, status: "Pending", date: "Oct 23" },
-  { name: "Stripe Payout", cat: "Revenue", amt: 14200, status: "Completed", date: "Oct 22" }
+  { name: "AWS Services", cat: "Infrastructure", amt: -103335, status: "Completed", date: "Oct 24" },
+  { name: "Google Ads", cat: "Marketing", amt: -71380, status: "Pending", date: "Oct 23" },
+  { name: "Stripe Payout", cat: "Revenue", amt: 1178600, status: "Completed", date: "Oct 22" }
 ];
 function OverviewPage() {
   const [cashTab, setCashTab] = useState("monthly");
   const STATS_TOP = [
-    { label: "Total Balance", value: "$124,592.00", delta: "+2.4% from last month" },
-    { label: "Monthly Spending", value: "$8,450.25", delta: "+3.1% from last month" },
-    { label: "Total Savings", value: "$45,200.00", delta: "+1.2% from last month" },
+    { label: "Total Balance", value: "₹1,03,41,136.00", delta: "+2.4% from last month" },
+    { label: "Monthly Spending", value: "₹7,01,370.75", delta: "+3.1% from last month" },
+    { label: "Total Savings", value: "₹37,51,600.00", delta: "+1.2% from last month" },
     { label: "Budget Health", value: "85/100", delta: "Excellent", special: true }
   ];
   return <div>
@@ -282,7 +282,7 @@ function OverviewPage() {
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis dataKey="m" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1e3).toFixed(0)}k`} />
+              <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1e5).toFixed(1)}L`} />
               <Tooltip contentStyle={{ background: "#1a1a2e", border: `1px solid ${C.border}`, borderRadius: 10, fontSize: "0.78rem", color: C.text }} />
               <Area type="monotone" dataKey="income" stroke={C.green} strokeWidth={2} fill="url(#incomeGrad)" dot={false} />
               <Area type="monotone" dataKey="expenses" stroke={C.purple} strokeWidth={2} fill="url(#expGrad)" dot={false} />
@@ -309,7 +309,7 @@ function OverviewPage() {
             </ResponsiveContainer>
             <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center" }}>
               <div style={{ fontSize: "0.65rem", color: C.textDim }}>TOTAL</div>
-              <div style={{ fontSize: "1rem", fontWeight: 700, color: C.text }}>$8.4k</div>
+              <div style={{ fontSize: "1rem", fontWeight: 700, color: C.text }}>₹6.97L</div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
@@ -344,7 +344,7 @@ function OverviewPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <Badge status={tx.status} />
                 <span style={{ fontSize: "0.875rem", fontWeight: 700, color: tx.amt > 0 ? C.green : C.text, minWidth: 80, textAlign: "right" }}>
-                  {tx.amt > 0 ? "+" : ""}{tx.amt.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                  {tx.amt > 0 ? "+" : ""}{tx.amt.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
                 </span>
               </div>
             </div>)}
@@ -353,14 +353,14 @@ function OverviewPage() {
     </div>;
 }
 const ALL_TX = [
-  { date: "Oct 24, 2023", name: "AWS Services", cat: "Infrastructure", status: "Completed", amt: -1245 },
-  { date: "Oct 23, 2023", name: "Google Ads", cat: "Marketing", status: "Pending", amt: -860 },
-  { date: "Oct 22, 2023", name: "Stripe Payout", cat: "Revenue", status: "Completed", amt: 14200 },
-  { date: "Oct 20, 2023", name: "Adobe Creative Cloud", cat: "Software", status: "Failed", amt: -54.99 },
-  { date: "Oct 18, 2023", name: "Gusto Payroll", cat: "Payroll", status: "Completed", amt: -8450 },
-  { date: "Oct 15, 2023", name: "Spotify Premium", cat: "Subscription", status: "Completed", amt: -9.99 },
-  { date: "Oct 12, 2023", name: "Whole Foods", cat: "Groceries", status: "Completed", amt: -67.4 },
-  { date: "Oct 10, 2023", name: "Client Invoice #204", cat: "Revenue", status: "Completed", amt: 6800 }
+  { date: "Oct 24, 2023", name: "AWS Services", cat: "Infrastructure", status: "Completed", amt: -103335 },
+  { date: "Oct 23, 2023", name: "Google Ads", cat: "Marketing", status: "Pending", amt: -71380 },
+  { date: "Oct 22, 2023", name: "Stripe Payout", cat: "Revenue", status: "Completed", amt: 1178600 },
+  { date: "Oct 20, 2023", name: "Adobe Creative Cloud", cat: "Software", status: "Failed", amt: -4564 },
+  { date: "Oct 18, 2023", name: "Gusto Payroll", cat: "Payroll", status: "Completed", amt: -701350 },
+  { date: "Oct 15, 2023", name: "Spotify Premium", cat: "Subscription", status: "Completed", amt: -829 },
+  { date: "Oct 12, 2023", name: "Whole Foods", cat: "Groceries", status: "Completed", amt: -5594 },
+  { date: "Oct 10, 2023", name: "Client Invoice #204", cat: "Revenue", status: "Completed", amt: 564400 }
 ];
 function TransactionsPage() {
   const [filter, setFilter] = useState("All");
@@ -415,7 +415,7 @@ function TransactionsPage() {
                 <td style={{ padding: "13px 18px", fontSize: "0.8rem", color: C.textMid }}>{tx.cat}</td>
                 <td style={{ padding: "13px 18px" }}><Badge status={tx.status} /></td>
                 <td style={{ padding: "13px 18px", fontSize: "0.875rem", fontWeight: 700, color: tx.amt > 0 ? C.green : C.text, textAlign: "right" }}>
-                  {tx.amt > 0 ? "+" : ""}{tx.amt.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                  {tx.amt > 0 ? "+" : ""}{tx.amt.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
                 </td>
               </tr>)}
           </tbody>
@@ -430,14 +430,14 @@ function TransactionsPage() {
     </div>;
 }
 const ALLOCATIONS = [
-  { name: "Housing & Rent", type: "Fixed Expense", icon: "\u{1F3E0}", budget: 3500, spent: 3200, color: C.purple },
-  { name: "Dining & Food", type: "Variable Expense", icon: "\u{1F37D}", budget: 1500, spent: 850, color: C.green },
-  { name: "Transportation", type: "Variable Expense", icon: "\u{1F697}", budget: 800, spent: 240, color: C.orange },
-  { name: "Entertainment", type: "Discretionary", icon: "\u{1F3AE}", budget: 500, spent: 620, color: C.pink }
+  { name: "Housing & Rent", type: "Fixed Expense", icon: "🏠", budget: 290500, spent: 265600, color: C.purple },
+  { name: "Dining & Food", type: "Variable Expense", icon: "🍽", budget: 124500, spent: 70550, color: C.green },
+  { name: "Transportation", type: "Variable Expense", icon: "🚗", budget: 66400, spent: 19920, color: C.orange },
+  { name: "Entertainment", type: "Discretionary", icon: "🎮", budget: 41500, spent: 51460, color: C.pink }
 ];
 function BudgetsPage() {
-  const totalBudget = 15e3;
-  const totalSpent = 12450;
+  const totalBudget = 15e3 * 83;
+  const totalSpent = 12450 * 83;
   const pct = Math.round(totalSpent / totalBudget * 100);
   return <div>
       <Header title="Budget Management">
@@ -453,13 +453,13 @@ function BudgetsPage() {
         <Card style={{ padding: "20px 22px" }}>
           <div style={{ fontSize: "0.68rem", color: C.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Total Monthly Budget</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "2rem", fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif" }}>${totalSpent.toLocaleString()}.00</span>
-            <span style={{ fontSize: "0.9rem", color: C.textDim }}>/ ${totalBudget.toLocaleString()}.00</span>
+            <span style={{ fontSize: "2rem", fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif" }}>₹{totalSpent.toLocaleString("en-IN")}.00</span>
+            <span style={{ fontSize: "0.9rem", color: C.textDim }}>/ ₹{totalBudget.toLocaleString("en-IN")}.00</span>
           </div>
           <ProgressBar pct={pct} warn />
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
             <span style={{ fontSize: "0.72rem", color: C.textDim }}>{pct}% Used</span>
-            <span style={{ fontSize: "0.72rem", color: C.green }}>${(totalBudget - totalSpent).toLocaleString()} Remaining</span>
+            <span style={{ fontSize: "0.72rem", color: C.green }}>₹{(totalBudget - totalSpent).toLocaleString("en-IN")} Remaining</span>
           </div>
         </Card>
         <Card style={{ padding: "20px 22px" }}>
@@ -493,14 +493,14 @@ function BudgetsPage() {
                 </div>
               </div>
               <div style={{ fontSize: "1.4rem", fontWeight: 700, color: over ? C.red : C.text, marginBottom: 8 }}>
-                ${a.spent.toLocaleString()}
-                <span style={{ fontSize: "0.75rem", color: C.textDim, fontWeight: 400 }}> of ${a.budget.toLocaleString()}</span>
+                ₹{a.spent.toLocaleString("en-IN")}
+                <span style={{ fontSize: "0.75rem", color: C.textDim, fontWeight: 400 }}> of ₹{a.budget.toLocaleString("en-IN")}</span>
               </div>
               <ProgressBar pct={p} color={a.color} warn />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                 <span style={{ fontSize: "0.68rem", color: over ? C.red : C.textDim }}>{p}% {over ? "\u2014 Exceeded" : "Used"}</span>
                 <span style={{ fontSize: "0.68rem", color: over ? C.red : C.green }}>
-                  {over ? `-$${(a.spent - a.budget).toLocaleString()} Over` : `$${(a.budget - a.spent).toLocaleString()} Remaining`}
+                  {over ? `-₹${(a.spent - a.budget).toLocaleString("en-IN")} Over` : `₹${(a.budget - a.spent).toLocaleString("en-IN")} Remaining`}
                 </span>
               </div>
             </Card>;
@@ -516,31 +516,31 @@ function BudgetsPage() {
     </div>;
 }
 const netWorthData = [
-  { m: "Feb", v: 28e4 },
-  { m: "Mar", v: 31e4 },
-  { m: "Apr", v: 42e4 },
-  { m: "May", v: 39e4 },
-  { m: "Jun", v: 48e4 },
-  { m: "Jul", v: 56e4 },
-  { m: "Aug", v: 62e4 },
-  { m: "Sep", v: 74e4 },
-  { m: "Oct", v: 82e4 },
-  { m: "Nov", v: 98e4 },
-  { m: "Dec", v: 1245890 }
+  { m: "Feb", v: 28e4 * 83 },
+  { m: "Mar", v: 31e4 * 83 },
+  { m: "Apr", v: 42e4 * 83 },
+  { m: "May", v: 39e4 * 83 },
+  { m: "Jun", v: 48e4 * 83 },
+  { m: "Jul", v: 56e4 * 83 },
+  { m: "Aug", v: 62e4 * 83 },
+  { m: "Sep", v: 74e4 * 83 },
+  { m: "Oct", v: 82e4 * 83 },
+  { m: "Nov", v: 98e4 * 83 },
+  { m: "Dec", v: 1245890 * 83 }
 ];
 const barData = [
-  { m: "Jan", income: 5200, expenses: 3800 },
-  { m: "Feb", income: 4800, expenses: 4100 },
-  { m: "Mar", income: 6200, expenses: 3600 },
-  { m: "Apr", income: 5800, expenses: 4200 },
-  { m: "May", income: 7100, expenses: 3900 },
-  { m: "Jun", income: 6500, expenses: 4400 },
-  { m: "Jul", income: 8200, expenses: 4100 },
-  { m: "Aug", income: 7600, expenses: 3700 },
-  { m: "Sep", income: 8900, expenses: 4600 },
-  { m: "Oct", income: 9200, expenses: 4200 },
-  { m: "Nov", income: 8700, expenses: 5100 },
-  { m: "Dec", income: 9400, expenses: 4800 }
+  { m: "Jan", income: 431600, expenses: 315400 },
+  { m: "Feb", income: 398400, expenses: 340300 },
+  { m: "Mar", income: 514600, expenses: 298800 },
+  { m: "Apr", income: 481400, expenses: 348600 },
+  { m: "May", income: 589300, expenses: 323700 },
+  { m: "Jun", income: 539500, expenses: 365200 },
+  { m: "Jul", income: 680600, expenses: 340300 },
+  { m: "Aug", income: 630800, expenses: 307100 },
+  { m: "Sep", income: 738700, expenses: 381800 },
+  { m: "Oct", income: 763600, expenses: 348600 },
+  { m: "Nov", income: 722100, expenses: 423300 },
+  { m: "Dec", income: 780200, expenses: 398400 }
 ];
 const ytdCat = [
   { name: "Housing", value: 38, color: C.purple },
@@ -567,7 +567,7 @@ function ReportsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 14, marginBottom: 14 }}>
         <Card style={{ padding: "20px 22px" }}>
           <div style={{ fontSize: "0.75rem", color: C.textDim, marginBottom: 4 }}>Net Worth Over Time</div>
-          <div style={{ fontSize: "2rem", fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif", marginBottom: 16 }}>$1,245,890.00</div>
+          <div style={{ fontSize: "2rem", fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif", marginBottom: 16 }}>₹10,34,08,870.00</div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={netWorthData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -578,7 +578,7 @@ function ReportsPage() {
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis dataKey="m" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1e3).toFixed(0)}k`} />
+              <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1e5).toFixed(1)}L`} />
               <Tooltip contentStyle={{ background: "#1a1a2e", border: `1px solid ${C.border}`, borderRadius: 10, fontSize: "0.78rem", color: C.text }} />
               <Line type="monotone" dataKey="v" stroke="url(#nwGrad)" strokeWidth={2.5} dot={false} />
             </LineChart>
@@ -623,7 +623,7 @@ function ReportsPage() {
           <BarChart data={barData} barGap={3} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
             <XAxis dataKey="m" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1e3).toFixed(0)}k`} />
+            <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1e5).toFixed(1)}L`} />
             <Tooltip contentStyle={{ background: "#1a1a2e", border: `1px solid ${C.border}`, borderRadius: 10, fontSize: "0.78rem", color: C.text }} />
             <Bar dataKey="income" fill={C.green} radius={[4, 4, 0, 0]} opacity={0.85} barSize={10} />
             <Bar dataKey="expenses" fill={C.purple} radius={[4, 4, 0, 0]} opacity={0.75} barSize={10} />
@@ -714,7 +714,7 @@ function SettingsPage() {
           <Card style={{ padding: "22px 24px" }}>
             <div style={{ fontSize: "0.85rem", fontWeight: 600, color: C.text, marginBottom: 18 }}>Regional Preferences</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {[{ label: "Base Currency", val: "USD \u2013 US Dollar" }, { label: "Language", val: "English (US)" }].map((f) => <div key={f.label}>
+              {[{ label: "Base Currency", val: "INR \u2013 Indian Rupee" }, { label: "Language", val: "English (IN)" }].map((f) => <div key={f.label}>
                   <label style={{ display: "block", fontSize: "0.72rem", color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>{f.label}</label>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#13131f", border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 13px", cursor: "pointer" }}>
                     <span style={{ fontSize: "0.875rem", color: C.text }}>{f.val}</span>
@@ -769,9 +769,9 @@ function AuthPage({ onLogin }) {
   const [tIdx, setTIdx] = useState(0);
   const t = TESTIMONIALS[tIdx];
   const PREVIEW_STATS = [
-    { label: "Total Balance", value: "$48,291", delta: "+12.4%" },
-    { label: "Monthly Spend", value: "$3,842", delta: "-8.1%" },
-    { label: "Investments", value: "$21,600", delta: "+5.7%" }
+    { label: "Total Balance", value: "₹40,08,153", delta: "+12.4%" },
+    { label: "Monthly Spend", value: "₹3,18,886", delta: "-8.1%" },
+    { label: "Investments", value: "₹17,92,800", delta: "+5.7%" }
   ];
   return <div className="min-h-screen flex" style={{ background: "#09090f", fontFamily: "'DM Sans', sans-serif" }}>
       {
@@ -902,7 +902,7 @@ function AuthPage({ onLogin }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: "0.7rem", color: "#9090c0" }}>Spending trend</div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#f0f0fa" }}>$3,842 <span style={{ fontSize: "0.72rem", color: C.green }}>↓ 8.1%</span></div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#f0f0fa" }}>₹3,18,886 <span style={{ fontSize: "0.72rem", color: C.green }}>↓ 8.1%</span></div>
                 </div>
                 <div style={{ display: "flex", gap: 4 }}>
                   {["1W", "1M", "3M"].map((tb, i) => <button key={tb} style={{ padding: "3px 7px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 500, background: i === 1 ? C.purpleDim : "transparent", color: i === 1 ? C.purpleL : "#5050a0", border: i === 1 ? `1px solid rgba(124,106,247,0.4)` : "1px solid transparent", cursor: "pointer" }}>{tb}</button>)}

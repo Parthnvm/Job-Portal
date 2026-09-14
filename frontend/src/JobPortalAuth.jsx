@@ -14,7 +14,7 @@ import {
   ArrowRight,
   CheckCircle2,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Clock,
   Users,
   Star,
@@ -461,9 +461,9 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
 }
 function StudentPreviewPanel() {
   const jobs = [
-    { title: "Senior Frontend Engineer", co: "Vercel", loc: "Remote", sal: "$140k\u2013$180k", logo: "VR", bg: "#000", tag: "Full-time", match: 98 },
-    { title: "Product Designer", co: "Linear", loc: "San Francisco", sal: "$120k\u2013$155k", logo: "LN", bg: "#5b6af7", tag: "Hybrid", match: 91 },
-    { title: "Data Scientist", co: "Stripe", loc: "New York", sal: "$150k\u2013$200k", logo: "ST", bg: "#635bff", tag: "Full-time", match: 85 }
+    { title: "Senior Frontend Engineer", co: "Vercel", loc: "Remote", sal: "₹1,16,20,000 – ₹1,49,40,000", logo: "VR", bg: "#000", tag: "Full-time", match: 98 },
+    { title: "Product Designer", co: "Linear", loc: "San Francisco", sal: "₹99,60,000 – ₹1,28,65,000", logo: "LN", bg: "#5b6af7", tag: "Hybrid", match: 91 },
+    { title: "Data Scientist", co: "Stripe", loc: "New York", sal: "₹1,24,50,000 – ₹1,66,00,000", logo: "ST", bg: "#635bff", tag: "Full-time", match: 85 }
   ];
   return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {
@@ -570,7 +570,7 @@ function RecruiterPreviewPanel() {
         </div>
         <div style={{ display: "flex", gap: 12, fontSize: "0.68rem", color: T.textDim }}>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={10} />Remote</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><DollarSign size={10} />$140k–$180k</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><IndianRupee size={10} />₹1,16,20,000 – ₹1,49,40,000</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={10} />3 days left</span>
         </div>
       </div>

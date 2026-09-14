@@ -1,6 +1,7 @@
 import { Job } from "../models/job.model.js";
 import { ExternalJob } from "../models/externalJob.model.js";
 import { Company } from "../models/company.model.js";
+import { convertUSDToINR, formatSalaryRangeINR } from "../utils/currency.js";
 
 // for admin
 export const postJob = async (req, res) => {
@@ -74,6 +75,14 @@ export const getAllJob = async (req, res) => {
       })
       .sort({ createdAt: -1 })) || [];
 
+    const processedInternalJobs = internalJobs.map((j) => {
+      const jobObj = j.toObject ? j.toObject() : { ...j };
+      if (typeof jobObj.salary === "number" && jobObj.salary < 500000) {
+        jobObj.salary = convertUSDToINR(jobObj.salary);
+      }
+      return jobObj;
+    });
+
     // Also fetch external jobs from DB
     let formattedExtJobs = [];
     try {
@@ -93,13 +102,12 @@ export const getAllJob = async (req, res) => {
 
       formattedExtJobs = extDocs.map((j) => {
         const idStr = String(j._id);
-        const sal = j.salaryMax
-          ? j.salaryMin
-            ? `₹${Math.round(j.salaryMin / 1000)}k - ₹${Math.round(j.salaryMax / 1000)}k`
-            : `Up to ₹${Math.round(j.salaryMax / 1000)}k`
-          : j.salaryMin
-          ? `From ₹${Math.round(j.salaryMin / 1000)}k`
-          : j.salaryRaw || "Competitive";
+        const sal = formatSalaryRangeINR(
+          j.salaryMin,
+          j.salaryMax,
+          j.salaryCurrency || "INR",
+          j.salaryDisplay || j.salaryRaw || "Competitive"
+        );
 
         return {
           _id: idStr,
@@ -130,7 +138,7 @@ export const getAllJob = async (req, res) => {
       console.error("[job.controller] Error fetching external jobs for getAllJob:", extErr);
     }
 
-    const allJobs = [...internalJobs, ...formattedExtJobs];
+    const allJobs = [...processedInternalJobs, ...formattedExtJobs];
 
     return res.status(200).json({
       jobs: allJobs,
@@ -152,16 +160,21 @@ export const getJobById = async (req, res) => {
     const jobId = req.params.id;
     let job = await Job.findById(jobId).populate({ path: "company" }).catch(() => null);
 
-    if (!job) {
+    if (job) {
+      const jobObj = job.toObject ? job.toObject() : { ...job };
+      if (typeof jobObj.salary === "number" && jobObj.salary < 500000) {
+        jobObj.salary = convertUSDToINR(jobObj.salary);
+      }
+      job = jobObj;
+    } else {
       const ext = await ExternalJob.findById(jobId).catch(() => null);
       if (ext) {
-        const sal = ext.salaryMax
-          ? ext.salaryMin
-            ? `₹${Math.round(ext.salaryMin / 1000)}k - ₹${Math.round(ext.salaryMax / 1000)}k`
-            : `Up to ₹${Math.round(ext.salaryMax / 1000)}k`
-          : ext.salaryMin
-          ? `From ₹${Math.round(ext.salaryMin / 1000)}k`
-          : ext.salaryRaw || "Competitive";
+        const sal = formatSalaryRangeINR(
+          ext.salaryMin,
+          ext.salaryMax,
+          ext.salaryCurrency || "INR",
+          ext.salaryDisplay || ext.salaryRaw || "Competitive"
+        );
 
         job = {
           _id: String(ext._id),

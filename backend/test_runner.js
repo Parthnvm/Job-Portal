@@ -14,6 +14,13 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jobRoute from "./routes/job.route.js";
 import { Company } from "./models/company.model.js";
+import {
+  USD_TO_INR,
+  convertUSDToINR,
+  formatINR,
+  formatSalaryRangeINR,
+  parseAndConvertSalaryString
+} from "./utils/currency.js";
 
 const results = [];
 function record(testName, passed, details = "") {
@@ -120,6 +127,24 @@ async function runTests() {
   record("Jooble normalization: apply_url", normalizedJooble.apply_url === "https://in.jooble.org/jdp/987654321", `URL: ${normalizedJooble.apply_url}`);
   record("Jooble normalization: salary", normalizedJooble.salaryMin === 1200000 && normalizedJooble.salaryMax === 1800000, `Min: ${normalizedJooble.salaryMin}, Max: ${normalizedJooble.salaryMax}`);
   record("Jooble normalization: skills", normalizedJooble.skills.includes("Python") && normalizedJooble.skills.includes("Django"), `Skills: ${JSON.stringify(normalizedJooble.skills)}`);
+
+  // Test Jooble with USD salary payload
+  const mockJoobleUSD = {
+    id: 987654322,
+    title: "US Remote Engineer",
+    location: "Remote",
+    snippet: "Engineer role",
+    salary: "$50,000 - $80,000",
+    link: "https://jooble.org/jdp/987654322",
+    company: "Global Corp"
+  };
+  const normalizedJoobleUSD = jooble.normalizeJob(mockJoobleUSD);
+  record("Jooble normalization USD conversion",
+    normalizedJoobleUSD.salaryMin === 4150000 &&
+    normalizedJoobleUSD.salaryMax === 6640000 &&
+    normalizedJoobleUSD.salaryCurrency === "INR",
+    `Min: ${normalizedJoobleUSD.salaryMin}, Max: ${normalizedJoobleUSD.salaryMax}, Display: "${normalizedJoobleUSD.salaryDisplay}"`
+  );
 
   // ─── TEST 3: Deduplication Service ───────────────────────────────────────────
   console.log("\n--- TEST 3: Deduplication Service ---");
@@ -261,6 +286,59 @@ async function runTests() {
   } catch (err) {
     record("Dashboard endpoints test", false, err.message);
   }
+
+  // ─── TEST 6: Currency & Salary System (USD to INR & Indian Formatting) ───────
+  console.log("\n--- TEST 6: Currency & Salary System (USD -> INR) ---");
+  record("Centralized rate verification", USD_TO_INR === 83, `Rate: 1 USD = ₹${USD_TO_INR}`);
+
+  // Test USD -> INR conversion
+  record("USD to INR: 50,000 -> 41,50,000", convertUSDToINR(50000) === 4150000, `Result: ${convertUSDToINR(50000)}`);
+  record("USD to INR: 60,000 -> 49,80,000", convertUSDToINR(60000) === 4980000, `Result: ${convertUSDToINR(60000)}`);
+  record("USD to INR: 100,000 -> 83,00,000", convertUSDToINR(100000) === 8300000, `Result: ${convertUSDToINR(100000)}`);
+  record("USD to INR string: '140k' -> 1,16,20,000", convertUSDToINR("140k") === 11620000, `Result: ${convertUSDToINR("140k")}`);
+  record("USD to INR string: '$180k' -> 1,49,40,000", convertUSDToINR("$180k") === 14940000, `Result: ${convertUSDToINR("$180k")}`);
+
+  // Test Indian number formatting
+  record("Indian format: 1,00,000", formatINR(100000) === "₹1,00,000", `Formatted: "${formatINR(100000)}"`);
+  record("Indian format: 5,50,000", formatINR(550000) === "₹5,50,000", `Formatted: "${formatINR(550000)}"`);
+  record("Indian format: 12,50,000", formatINR(1250000) === "₹12,50,000", `Formatted: "${formatINR(1250000)}"`);
+  record("Indian format: 25,00,000", formatINR(2500000) === "₹25,00,000", `Formatted: "${formatINR(2500000)}"`);
+  record("Indian format: 1,25,00,000", formatINR(12500000) === "₹1,25,00,000", `Formatted: "${formatINR(12500000)}"`);
+
+  // Test salary range formatting & conversion
+  const usdRangeFmt = formatSalaryRangeINR(40000, 60000, "USD");
+  record("Range USD conversion: $40,000 - $60,000 -> ₹33,20,000 - ₹49,80,000 / yr",
+    usdRangeFmt === "₹33,20,000 - ₹49,80,000 / yr",
+    `Formatted: "${usdRangeFmt}"`
+  );
+
+  const inrRangeFmt = formatSalaryRangeINR(1200000, 1800000, "INR");
+  record("Range INR preservation (no double conversion): ₹12,00,000 - ₹18,00,000 / yr",
+    inrRangeFmt === "₹12,00,000 - ₹18,00,000 / yr",
+    `Formatted: "${inrRangeFmt}"`
+  );
+
+  // Test edge cases: missing min, missing max, null, undefined, zero, decimal
+  record("Range with min only", formatSalaryRangeINR(1000000, null, "INR") === "From ₹10,00,000 / yr");
+  record("Range with max only", formatSalaryRangeINR(null, 2000000, "INR") === "Up to ₹20,00,000 / yr");
+  record("Range with nulls", formatSalaryRangeINR(null, null, "INR", "Competitive") === "Competitive");
+  record("Null amount conversion", convertUSDToINR(null) === null);
+  record("Undefined amount conversion", convertUSDToINR(undefined) === null);
+  record("Zero conversion", convertUSDToINR(0) === 0);
+  record("Decimal rounding: 1234.56 * 83 -> 102468", convertUSDToINR(1234.56) === 102468);
+
+  // Test string parsing with prevention of double conversion
+  const parsedUsdStr = parseAndConvertSalaryString("$140k – $180k");
+  record("String parse USD: $140k – $180k -> ₹1,16,20,000 - ₹1,49,40,000",
+    parsedUsdStr.includes("₹1,16,20,000") && parsedUsdStr.includes("₹1,49,40,000"),
+    `Result: "${parsedUsdStr}"`
+  );
+
+  const parsedInrStr = parseAndConvertSalaryString("₹8,00,000 - ₹14,00,000 / yr");
+  record("String parse INR preservation: ₹8,00,000 - ₹14,00,000 / yr untouched",
+    parsedInrStr === "₹8,00,000 - ₹14,00,000 / yr",
+    `Result: "${parsedInrStr}"`
+  );
   console.log("\n==================================================");
   console.log("TEST SUMMARY");
   console.log("==================================================");

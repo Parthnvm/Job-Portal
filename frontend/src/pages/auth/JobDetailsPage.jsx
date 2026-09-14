@@ -4,7 +4,7 @@ import {
   Sparkles, 
   MapPin, 
   Briefcase, 
-  DollarSign, 
+  IndianRupee, 
   Bookmark, 
   Share2, 
   CheckCircle2, 
@@ -21,6 +21,7 @@ import { Footer } from '../../components/common/Footer';
 import { useAppData } from '../../context/AppDataContext';
 import { useToast } from '../../context/ToastContext';
 import { AIChatModal } from '../../components/common/AIChatModal';
+import { formatSalaryDisplay } from '../../utils/currency';
 
 export const JobDetailsPage = () => {
   const { id } = useParams();
@@ -83,7 +84,7 @@ export const JobDetailsPage = () => {
                   <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-300">
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {job.location}</span>
                     <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5 text-slate-400" /> {job.experience}</span>
-                    <span className="flex items-center gap-1 font-semibold text-emerald-400"><DollarSign className="w-3.5 h-3.5" /> {job.salary}</span>
+                    <span className="flex items-center gap-1 font-semibold text-emerald-400"><IndianRupee className="w-3.5 h-3.5" /> {formatSalaryDisplay(job.salaryDisplay || job.salary)}</span>
                   </div>
                 </div>
               </div>

@@ -881,7 +881,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
                     <label style={{ display: "block", fontSize: "0.8rem", color: T.textMid, marginBottom: 6, fontWeight: 500 }}>Salary (INR / year)</label>
-                    <Input type="number" placeholder="135000" value={jobSalary} onChange={(e) => setJobSalary(e.target.value)} required />
+                    <Input type="number" placeholder="1200000" value={jobSalary} onChange={(e) => setJobSalary(e.target.value)} required />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.8rem", color: T.textMid, marginBottom: 6, fontWeight: 500 }}>Location</label>

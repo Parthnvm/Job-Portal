@@ -21,7 +21,7 @@ import {
   BookmarkPlus,
   Globe,
   Clock,
-  DollarSign,
+  IndianRupee,
   ArrowRight,
   Zap,
   Star,
@@ -30,6 +30,7 @@ import {
   X
 } from "lucide-react";
 import API from "./services/api";
+import { formatSalaryDisplay } from "./utils/currency";
 export const getRelativeTime = (dateStr) => {
   if (!dateStr) return "1d ago";
   const now = /* @__PURE__ */ new Date();
@@ -609,37 +610,37 @@ function CategoryCarousel({
 }
 const JOBS = [
   // Engineering
-  { id: 1, category: "Engineering", title: "Senior Frontend Engineer", company: "Vercel", location: "Remote", type: "Full-time", salary: "$140k \u2013 $180k", posted: "2h ago", logo: "VR", logoColor: "#fff", logoBg: "#000", tags: ["React", "TypeScript", "Next.js"], featured: true },
-  { id: 4, category: "Engineering", title: "DevOps Engineer", company: "PlanetScale", location: "Remote", type: "Full-time", salary: "$130k \u2013 $170k", posted: "2d ago", logo: "PS", logoColor: "#fff", logoBg: "#f97316", tags: ["Kubernetes", "AWS", "Terraform"], featured: false },
-  { id: 5, category: "Engineering", title: "Backend Engineer (Go)", company: "Supabase", location: "Remote", type: "Full-time", salary: "$120k \u2013 $160k", posted: "3d ago", logo: "SB", logoColor: "#fff", logoBg: "#3ecf8e", tags: ["Go", "PostgreSQL", "Docker"], featured: false },
-  { id: 21, category: "Engineering", title: "iOS Engineer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "$160k \u2013 $210k", posted: "1d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["Swift", "UIKit", "Combine"], featured: false },
+  { id: 1, category: "Engineering", title: "Senior Frontend Engineer", company: "Vercel", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,49,40,000 / yr", posted: "2h ago", logo: "VR", logoColor: "#fff", logoBg: "#000", tags: ["React", "TypeScript", "Next.js"], featured: true },
+  { id: 4, category: "Engineering", title: "DevOps Engineer", company: "PlanetScale", location: "Remote", type: "Full-time", salary: "₹1,07,90,000 – ₹1,41,10,000 / yr", posted: "2d ago", logo: "PS", logoColor: "#fff", logoBg: "#f97316", tags: ["Kubernetes", "AWS", "Terraform"], featured: false },
+  { id: 5, category: "Engineering", title: "Backend Engineer (Go)", company: "Supabase", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,32,80,000 / yr", posted: "3d ago", logo: "SB", logoColor: "#fff", logoBg: "#3ecf8e", tags: ["Go", "PostgreSQL", "Docker"], featured: false },
+  { id: 21, category: "Engineering", title: "iOS Engineer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹1,32,80,000 – ₹1,74,30,000 / yr", posted: "1d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["Swift", "UIKit", "Combine"], featured: false },
   // Design
-  { id: 2, category: "Design", title: "Product Designer", company: "Linear", location: "San Francisco, CA", type: "Full-time", salary: "$120k \u2013 $155k", posted: "5h ago", logo: "LN", logoColor: "#fff", logoBg: "#5b6af7", tags: ["Figma", "Systems Design", "Motion"], featured: false },
-  { id: 7, category: "Design", title: "UI/UX Designer", company: "Notion", location: "Remote", type: "Full-time", salary: "$110k \u2013 $140k", posted: "4h ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Figma", "Prototyping", "User Research"], featured: false },
-  { id: 8, category: "Design", title: "Brand Designer", company: "Spotify", location: "New York, NY", type: "Full-time", salary: "$105k \u2013 $135k", posted: "1d ago", logo: "SP", logoColor: "#fff", logoBg: "#1DB954", tags: ["Illustrator", "Brand Identity", "Motion"], featured: false },
-  { id: 9, category: "Design", title: "Motion Designer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "$115k \u2013 $150k", posted: "2d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["After Effects", "Lottie", "Framer"], featured: false },
-  { id: 10, category: "Design", title: "Design Systems Lead", company: "Shopify", location: "Remote", type: "Full-time", salary: "$140k \u2013 $175k", posted: "3d ago", logo: "SH", logoColor: "#fff", logoBg: "#5a8a00", tags: ["Figma", "React", "Storybook"], featured: false },
-  { id: 22, category: "Design", title: "Visual Designer", company: "Figma", location: "San Francisco, CA", type: "Full-time", salary: "$125k \u2013 $160k", posted: "6h ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["Figma", "Illustration", "Brand"], featured: false },
+  { id: 2, category: "Design", title: "Product Designer", company: "Linear", location: "San Francisco, CA", type: "Full-time", salary: "₹99,60,000 – ₹1,28,65,000 / yr", posted: "5h ago", logo: "LN", logoColor: "#fff", logoBg: "#5b6af7", tags: ["Figma", "Systems Design", "Motion"], featured: false },
+  { id: 7, category: "Design", title: "UI/UX Designer", company: "Notion", location: "Remote", type: "Full-time", salary: "₹91,30,000 – ₹1,16,20,000 / yr", posted: "4h ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Figma", "Prototyping", "User Research"], featured: false },
+  { id: 8, category: "Design", title: "Brand Designer", company: "Spotify", location: "New York, NY", type: "Full-time", salary: "₹87,15,000 – ₹1,12,05,000 / yr", posted: "1d ago", logo: "SP", logoColor: "#fff", logoBg: "#1DB954", tags: ["Illustrator", "Brand Identity", "Motion"], featured: false },
+  { id: 9, category: "Design", title: "Motion Designer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹95,45,000 – ₹1,24,50,000 / yr", posted: "2d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["After Effects", "Lottie", "Framer"], featured: false },
+  { id: 10, category: "Design", title: "Design Systems Lead", company: "Shopify", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,45,25,000 / yr", posted: "3d ago", logo: "SH", logoColor: "#fff", logoBg: "#5a8a00", tags: ["Figma", "React", "Storybook"], featured: false },
+  { id: 22, category: "Design", title: "Visual Designer", company: "Figma", location: "San Francisco, CA", type: "Full-time", salary: "₹1,03,75,000 – ₹1,32,80,000 / yr", posted: "6h ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["Figma", "Illustration", "Brand"], featured: false },
   // Finance
-  { id: 3, category: "Finance", title: "Data Scientist", company: "Stripe", location: "New York, NY", type: "Hybrid", salary: "$150k \u2013 $200k", posted: "1d ago", logo: "ST", logoColor: "#fff", logoBg: "#635bff", tags: ["Python", "ML", "SQL"], featured: false },
-  { id: 11, category: "Finance", title: "Financial Analyst", company: "Coinbase", location: "Remote", type: "Full-time", salary: "$120k \u2013 $160k", posted: "1d ago", logo: "CB", logoColor: "#fff", logoBg: "#0052FF", tags: ["Excel", "SQL", "Financial Modeling"], featured: false },
-  { id: 12, category: "Finance", title: "Risk Manager", company: "Robinhood", location: "Menlo Park, CA", type: "Hybrid", salary: "$130k \u2013 $170k", posted: "4d ago", logo: "RH", logoColor: "#fff", logoBg: "#00C805", tags: ["Risk Analysis", "Python", "Bloomberg"], featured: false },
+  { id: 3, category: "Finance", title: "Data Scientist", company: "Stripe", location: "New York, NY", type: "Hybrid", salary: "₹1,24,50,000 – ₹1,66,00,000 / yr", posted: "1d ago", logo: "ST", logoColor: "#fff", logoBg: "#635bff", tags: ["Python", "ML", "SQL"], featured: false },
+  { id: 11, category: "Finance", title: "Financial Analyst", company: "Coinbase", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,32,80,000 / yr", posted: "1d ago", logo: "CB", logoColor: "#fff", logoBg: "#0052FF", tags: ["Excel", "SQL", "Financial Modeling"], featured: false },
+  { id: 12, category: "Finance", title: "Risk Manager", company: "Robinhood", location: "Menlo Park, CA", type: "Hybrid", salary: "₹1,07,90,000 – ₹1,41,10,000 / yr", posted: "4d ago", logo: "RH", logoColor: "#fff", logoBg: "#00C805", tags: ["Risk Analysis", "Python", "Bloomberg"], featured: false },
   // Marketing
-  { id: 6, category: "Marketing", title: "Growth Marketing Lead", company: "Figma", location: "Austin, TX", type: "Hybrid", salary: "$110k \u2013 $145k", posted: "3d ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["SEO", "Analytics", "Paid Ads"], featured: false },
-  { id: 13, category: "Marketing", title: "Content Strategist", company: "HubSpot", location: "Remote", type: "Full-time", salary: "$90k \u2013 $120k", posted: "2d ago", logo: "HS", logoColor: "#fff", logoBg: "#FF7A59", tags: ["Content", "SEO", "HubSpot CMS"], featured: false },
-  { id: 23, category: "Marketing", title: "Performance Marketing Manager", company: "Notion", location: "Remote", type: "Full-time", salary: "$100k \u2013 $135k", posted: "5d ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Google Ads", "Meta", "A/B Testing"], featured: false },
+  { id: 6, category: "Marketing", title: "Growth Marketing Lead", company: "Figma", location: "Austin, TX", type: "Hybrid", salary: "₹91,30,000 – ₹1,20,35,000 / yr", posted: "3d ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["SEO", "Analytics", "Paid Ads"], featured: false },
+  { id: 13, category: "Marketing", title: "Content Strategist", company: "HubSpot", location: "Remote", type: "Full-time", salary: "₹74,70,000 – ₹99,60,000 / yr", posted: "2d ago", logo: "HS", logoColor: "#fff", logoBg: "#FF7A59", tags: ["Content", "SEO", "HubSpot CMS"], featured: false },
+  { id: 23, category: "Marketing", title: "Performance Marketing Manager", company: "Notion", location: "Remote", type: "Full-time", salary: "₹83,00,000 – ₹1,12,05,000 / yr", posted: "5d ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Google Ads", "Meta", "A/B Testing"], featured: false },
   // Healthcare
-  { id: 14, category: "Healthcare", title: "Health Data Analyst", company: "Epic", location: "Madison, WI", type: "Full-time", salary: "$95k \u2013 $130k", posted: "1d ago", logo: "EP", logoColor: "#fff", logoBg: "#c0392b", tags: ["HL7", "SQL", "Tableau"], featured: false },
-  { id: 15, category: "Healthcare", title: "Clinical Software Engineer", company: "Nuna", location: "Remote", type: "Full-time", salary: "$130k \u2013 $165k", posted: "3d ago", logo: "NU", logoColor: "#fff", logoBg: "#2980b9", tags: ["Python", "FHIR", "Healthcare APIs"], featured: false },
+  { id: 14, category: "Healthcare", title: "Health Data Analyst", company: "Epic", location: "Madison, WI", type: "Full-time", salary: "₹78,85,000 – ₹1,07,90,000 / yr", posted: "1d ago", logo: "EP", logoColor: "#fff", logoBg: "#c0392b", tags: ["HL7", "SQL", "Tableau"], featured: false },
+  { id: 15, category: "Healthcare", title: "Clinical Software Engineer", company: "Nuna", location: "Remote", type: "Full-time", salary: "₹1,07,90,000 – ₹1,36,95,000 / yr", posted: "3d ago", logo: "NU", logoColor: "#fff", logoBg: "#2980b9", tags: ["Python", "FHIR", "Healthcare APIs"], featured: false },
   // Security
-  { id: 16, category: "Security", title: "Security Engineer", company: "Cloudflare", location: "Remote", type: "Full-time", salary: "$140k \u2013 $180k", posted: "2d ago", logo: "CF", logoColor: "#fff", logoBg: "#F6821F", tags: ["Network Security", "Rust", "Zero Trust"], featured: false },
-  { id: 17, category: "Security", title: "Penetration Tester", company: "HackerOne", location: "Remote", type: "Contract", salary: "$120k \u2013 $155k", posted: "5d ago", logo: "H1", logoColor: "#fff", logoBg: "#494368", tags: ["Bug Bounty", "OWASP", "Metasploit"], featured: false },
+  { id: 16, category: "Security", title: "Security Engineer", company: "Cloudflare", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,49,40,000 / yr", posted: "2d ago", logo: "CF", logoColor: "#fff", logoBg: "#F6821F", tags: ["Network Security", "Rust", "Zero Trust"], featured: false },
+  { id: 17, category: "Security", title: "Penetration Tester", company: "HackerOne", location: "Remote", type: "Contract", salary: "₹99,60,000 – ₹1,28,65,000 / yr", posted: "5d ago", logo: "H1", logoColor: "#fff", logoBg: "#494368", tags: ["Bug Bounty", "OWASP", "Metasploit"], featured: false },
   // Education
-  { id: 18, category: "Education", title: "EdTech Product Manager", company: "Coursera", location: "Remote", type: "Full-time", salary: "$120k \u2013 $150k", posted: "6d ago", logo: "CO", logoColor: "#fff", logoBg: "#0056D2", tags: ["Product", "EdTech", "Analytics"], featured: false },
-  { id: 24, category: "Education", title: "Curriculum Designer", company: "Khan Academy", location: "Remote", type: "Full-time", salary: "$85k \u2013 $110k", posted: "4d ago", logo: "KA", logoColor: "#fff", logoBg: "#14BF96", tags: ["Instructional Design", "SCORM", "LMS"], featured: false },
+  { id: 18, category: "Education", title: "EdTech Product Manager", company: "Coursera", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,24,50,000 / yr", posted: "6d ago", logo: "CO", logoColor: "#fff", logoBg: "#0056D2", tags: ["Product", "EdTech", "Analytics"], featured: false },
+  { id: 24, category: "Education", title: "Curriculum Designer", company: "Khan Academy", location: "Remote", type: "Full-time", salary: "₹70,55,000 – ₹91,30,000 / yr", posted: "4d ago", logo: "KA", logoColor: "#fff", logoBg: "#14BF96", tags: ["Instructional Design", "SCORM", "LMS"], featured: false },
   // Engineering Ops
-  { id: 19, category: "Engineering Ops", title: "Site Reliability Engineer", company: "Netflix", location: "Remote", type: "Full-time", salary: "$180k \u2013 $230k", posted: "1d ago", logo: "NF", logoColor: "#fff", logoBg: "#E50914", tags: ["Chaos Engineering", "AWS", "Python"], featured: false },
-  { id: 20, category: "Engineering Ops", title: "Platform Engineer", company: "Datadog", location: "New York, NY", type: "Hybrid", salary: "$150k \u2013 $195k", posted: "4d ago", logo: "DD", logoColor: "#fff", logoBg: "#632CA6", tags: ["Kubernetes", "Terraform", "Go"], featured: false }
+  { id: 19, category: "Engineering Ops", title: "Site Reliability Engineer", company: "Netflix", location: "Remote", type: "Full-time", salary: "₹1,49,40,000 – ₹1,90,90,000 / yr", posted: "1d ago", logo: "NF", logoColor: "#fff", logoBg: "#E50914", tags: ["Chaos Engineering", "AWS", "Python"], featured: false },
+  { id: 20, category: "Engineering Ops", title: "Platform Engineer", company: "Datadog", location: "New York, NY", type: "Hybrid", salary: "₹1,24,50,000 – ₹1,61,85,000 / yr", posted: "4d ago", logo: "DD", logoColor: "#fff", logoBg: "#632CA6", tags: ["Kubernetes", "Terraform", "Go"], featured: false }
 ];
 const TYPE_COLORS = {
   "Full-time": [T.greenDim, T.green],
@@ -653,7 +654,7 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
   const [typeBg, typeColor] = TYPE_COLORS[jobType] ?? [T.purpleDim, T.purpleL];
   const companyName = job.company?.name || job.company || "Company";
   const logoText = companyName.slice(0, 2).toUpperCase();
-  const formattedSalary = typeof job.salary === "number" ? `$${Math.round(job.salary / 1e3)}k` : job.salary || "N/A";
+  const formattedSalary = formatSalaryDisplay(job.salaryDisplay || job.salary);
   const relativeTime = getRelativeTime(job.createdAt) || job.posted || "1d ago";
 
   return <GlassCard style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", padding: "20px 22px", position: "relative", overflow: "hidden" }}>
@@ -693,7 +694,7 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
       {/* Metadata: Location, Salary, Time */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, minHeight: 22, alignItems: "center" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><MapPin size={12} />{job.location}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><DollarSign size={12} />{formattedSalary}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><IndianRupee size={12} />{formattedSalary}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Clock size={12} />{relativeTime}</span>
       </div>
 
@@ -980,16 +981,16 @@ function CompaniesSection() {
     </section>;
 }
 const SALARY_ROWS = [
-  { role: "Senior Frontend Engineer", category: "Engineering", entry: "$85k", mid: "$130k", senior: "$170k", lead: "$210k", trend: "+8.2%" },
-  { role: "Product Designer", category: "Design", entry: "$75k", mid: "$110k", senior: "$150k", lead: "$190k", trend: "+6.5%" },
-  { role: "Data Scientist", category: "Finance", entry: "$90k", mid: "$135k", senior: "$180k", lead: "$225k", trend: "+11.3%" },
-  { role: "DevOps / SRE", category: "Engineering Ops", entry: "$95k", mid: "$140k", senior: "$185k", lead: "$235k", trend: "+9.7%" },
-  { role: "Security Engineer", category: "Security", entry: "$100k", mid: "$145k", senior: "$190k", lead: "$240k", trend: "+13.1%" },
-  { role: "Marketing Manager", category: "Marketing", entry: "$60k", mid: "$90k", senior: "$125k", lead: "$165k", trend: "+4.2%" },
-  { role: "UX Researcher", category: "Design", entry: "$72k", mid: "$105k", senior: "$140k", lead: "$178k", trend: "+5.8%" },
-  { role: "Clinical Software Engineer", category: "Healthcare", entry: "$90k", mid: "$130k", senior: "$170k", lead: "$210k", trend: "+7.4%" },
-  { role: "Backend Engineer (Go)", category: "Engineering", entry: "$88k", mid: "$125k", senior: "$165k", lead: "$205k", trend: "+8.9%" },
-  { role: "EdTech Product Manager", category: "Education", entry: "$80k", mid: "$115k", senior: "$148k", lead: "$180k", trend: "+3.6%" }
+  { role: "Senior Frontend Engineer", category: "Engineering", entry: "₹70,55,000", mid: "₹1,07,90,000", senior: "₹1,41,10,000", lead: "₹1,74,30,000", trend: "+8.2%" },
+  { role: "Product Designer", category: "Design", entry: "₹62,25,000", mid: "₹91,30,000", senior: "₹1,24,50,000", lead: "₹1,57,70,000", trend: "+6.5%" },
+  { role: "Data Scientist", category: "Finance", entry: "₹74,70,000", mid: "₹1,12,05,000", senior: "₹1,49,40,000", lead: "₹1,86,75,000", trend: "+11.3%" },
+  { role: "DevOps / SRE", category: "Engineering Ops", entry: "₹78,85,000", mid: "₹1,16,20,000", senior: "₹1,53,55,000", lead: "₹1,95,05,000", trend: "+9.7%" },
+  { role: "Security Engineer", category: "Security", entry: "₹83,00,000", mid: "₹1,20,35,000", senior: "₹1,57,70,000", lead: "₹1,99,20,000", trend: "+13.1%" },
+  { role: "Marketing Manager", category: "Marketing", entry: "₹49,80,000", mid: "₹74,70,000", senior: "₹1,03,75,000", lead: "₹1,36,95,000", trend: "+4.2%" },
+  { role: "UX Researcher", category: "Design", entry: "₹59,76,000", mid: "₹87,15,000", senior: "₹1,16,20,000", lead: "₹1,47,74,000", trend: "+5.8%" },
+  { role: "Clinical Software Engineer", category: "Healthcare", entry: "₹74,70,000", mid: "₹1,07,90,000", senior: "₹1,41,10,000", lead: "₹1,74,30,000", trend: "+7.4%" },
+  { role: "Backend Engineer (Go)", category: "Engineering", entry: "₹73,04,000", mid: "₹1,03,75,000", senior: "₹1,36,95,000", lead: "₹1,70,15,000", trend: "+8.9%" },
+  { role: "EdTech Product Manager", category: "Education", entry: "₹66,40,000", mid: "₹95,45,000", senior: "₹1,22,84,000", lead: "₹1,49,40,000", trend: "+3.6%" }
 ];
 const CAT_COLORS = {
   Engineering: T.purple,
@@ -1022,9 +1023,9 @@ function SalariesSection() {
   }
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 32 }}>
         {[
-    { label: "Avg. Senior Engineer", value: "$172k", delta: "+8.9% YoY", color: T.purple },
-    { label: "Avg. Senior Designer", value: "$145k", delta: "+6.5% YoY", color: "#f472b6" },
-    { label: "Avg. Data Scientist", value: "$180k", delta: "+11.3% YoY", color: T.green },
+    { label: "Avg. Senior Engineer", value: "₹1,42,76,000", delta: "+8.9% YoY", color: T.purple },
+    { label: "Avg. Senior Designer", value: "₹1,20,35,000", delta: "+6.5% YoY", color: "#f472b6" },
+    { label: "Avg. Data Scientist", value: "₹1,49,40,000", delta: "+11.3% YoY", color: T.green },
     { label: "Highest Growth Role", value: "Security Eng.", delta: "+13.1% YoY", color: T.yellow }
   ].map((stat) => <GlassCard key={stat.label} hover={false} style={{ padding: "18px 20px" }}>
             <div style={{ fontSize: "0.68rem", color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{stat.label}</div>
@@ -1225,7 +1226,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
   }} style={{ background: "transparent", border: "none", color: T.textDim, cursor: "pointer", fontSize: "1.5rem" }}>&times;</button>
                   </div>
                   <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-                    <span style={{ padding: "4px 12px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, fontSize: "0.8rem", color: T.textMid }}>💰 {typeof jobDetails.salary === "number" ? `$${Math.round(jobDetails.salary / 1e3)}k/yr` : jobDetails.salary || "Competitive"}</span>
+                    <span style={{ padding: "4px 12px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, fontSize: "0.8rem", color: T.textMid }}>💰 {formatSalaryDisplay(jobDetails.salaryDisplay || jobDetails.salary)}</span>
                     <span style={{ padding: "4px 12px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, fontSize: "0.8rem", color: T.textMid }}>🕒 {jobDetails.jobType || jobDetails.type || "Full-time"}</span>
                     <span style={{ padding: "4px 12px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, fontSize: "0.8rem", color: T.textMid }}>🎓 {jobDetails.experiencelevel || jobDetails.experienceLevel || 0} Yrs Exp</span>
                   </div>

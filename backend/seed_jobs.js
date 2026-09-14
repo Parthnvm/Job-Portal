@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { User } from "./models/user.model.js";
 import { Company } from "./models/company.model.js";
 import { Job } from "./models/job.model.js";
+import { convertUSDToINR } from "./utils/currency.js";
 import bcrypt from "bcryptjs";
 
 dotenv.config();
@@ -126,7 +127,7 @@ async function seed() {
         title: j.title,
         description: j.description,
         requirements: j.requirements,
-        salary: j.salary,
+        salary: convertUSDToINR(j.salary),
         experiencelevel: j.experiencelevel,
         location: j.location,
         jobType: j.jobType,

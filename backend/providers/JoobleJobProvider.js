@@ -1,6 +1,7 @@
 import axios from "axios";
 import { JobProvider } from "./ExternalJobProvider.js";
 import { extractSkills } from "../utils/skillExtractor.js";
+import { convertUSDToINR, formatSalaryRangeINR } from "../utils/currency.js";
 
 const DEFAULT_JOOBLE_BASE_URL = "https://in.jooble.org/api";
 const FALLBACK_JOOBLE_BASE_URL = "https://jooble.org/api";
@@ -87,7 +88,18 @@ function normalizeJoobleJob(item) {
 
   const combinedText = `${cleanTitle} ${cleanSnippet} ${cleanCompany}`;
   const skills = extractSkills(combinedText);
-  const { salaryMin, salaryMax, currency } = parseSalary(item.salary || "");
+  const { salaryMin: rawMin, salaryMax: rawMax, currency: rawCurrency } = parseSalary(item.salary || "");
+
+  let salaryMin = rawMin;
+  let salaryMax = rawMax;
+  let salaryCurrency = "INR";
+
+  if (rawCurrency === "USD") {
+    salaryMin = convertUSDToINR(rawMin);
+    salaryMax = convertUSDToINR(rawMax);
+  }
+
+  const salaryDisplay = formatSalaryRangeINR(salaryMin, salaryMax, "INR", item.salary || "");
 
   const postedAt = item.updated ? new Date(item.updated) : new Date();
   const importedAt = new Date();
@@ -116,9 +128,9 @@ function normalizeJoobleJob(item) {
     salary_min: salaryMin,
     salaryMax,
     salary_max: salaryMax,
-    salaryCurrency: currency,
-    salary_currency: currency,
-    salaryDisplay: item.salary || "",
+    salaryCurrency,
+    salary_currency: salaryCurrency,
+    salaryDisplay,
     postedAt,
     posted_date: postedAt,
     importedAt,

@@ -8,7 +8,7 @@ import {
   Briefcase,
   BookmarkPlus,
   Clock,
-  DollarSign,
+  IndianRupee,
   ArrowRight,
   Bell,
   Bookmark,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button, Input, GlassCard, getRelativeTime } from "./JobPortal";
 import { ResumeAnalyzerView } from "./JobPortalResumeAnalyzer";
+import { formatSalaryDisplay } from "./utils/currency";
 import API from "./services/api";
 const T = {
   bg: "#09090f",
@@ -523,8 +524,8 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   const totalPages = Math.ceil(displayedJobs.length / jobsPerPage);
   const startIndex = (currentPage - 1) * jobsPerPage;
   const paginatedJobs = displayedJobs.slice(startIndex, startIndex + jobsPerPage);
-  const formatSal = (sal) => {
-    return typeof sal === "number" ? `$${Math.round(sal / 1e3)}k` : sal || "N/A";
+  const formatSal = (sal, item = null) => {
+    return formatSalaryDisplay(item?.salaryDisplay || sal);
   };
   const getMatchScore = (jobId, jobReqs) => {
     if (!jobReqs || jobReqs.length === 0) return 0;
@@ -812,7 +813,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                           
                           <div style={{ display: "flex", gap: 12, fontSize: "0.75rem", color: T.textMid, marginBottom: 10 }}>
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} />{job.location || "India"}</span>
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><DollarSign size={12} />{formatSal(job.salary)}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><IndianRupee size={12} />{formatSal(job.salary, job)}</span>
                           </div>
 
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -973,7 +974,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
 
                     <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
                       <Tag color={T.greenDim} textColor={T.green}>{activeJob.jobType || "Full-time"}</Tag>
-                      <Tag color="rgba(255,255,255,0.06)" textColor={T.textMid}>{formatSal(activeJob.salary)}</Tag>
+                      <Tag color="rgba(255,255,255,0.06)" textColor={T.textMid}>{formatSal(activeJob.salary, activeJob)}</Tag>
                       {(activeJob.requirements || activeJob.skills || []).slice(0, 5).map((t) => <Tag key={t} color="rgba(255,255,255,0.06)" textColor={T.textMid}>{t}</Tag>)}
                     </div>
 

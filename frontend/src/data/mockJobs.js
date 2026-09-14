@@ -164,7 +164,7 @@ export const initialJobs = [
     location: "Remote (India)",
     type: "Internship",
     experience: "Freshers / Students",
-    salary: "₹35,00,00 / month Stipend",
+    salary: "₹35,000 / month Stipend",
     postedDate: "5 days ago",
     matchScore: 80,
     atsCompatibility: 83,

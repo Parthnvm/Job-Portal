@@ -1,6 +1,7 @@
 import axios from "axios";
 import { JobProvider } from "./ExternalJobProvider.js";
 import { extractSkills } from "../utils/skillExtractor.js";
+import { convertUSDToINR, formatSalaryRangeINR } from "../utils/currency.js";
 
 const ADZUNA_BASE_URL = "https://api.adzuna.com/v1/api/jobs";
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -33,29 +34,26 @@ function detectRemote(result) {
   );
 }
 
-/**
- * Formats an Indian currency salary display string.
- */
-function formatSalaryDisplay(min, max, currency) {
-  if (!min && !max) return "";
-  const symbol = currency === "INR" ? "₹" : currency || "";
-  const fmt = (n) => {
-    if (n >= 100_000) return `${symbol}${(n / 100_000).toFixed(1)}L`;
-    if (n >= 1_000) return `${symbol}${(n / 1_000).toFixed(0)}K`;
-    return `${symbol}${n}`;
-  };
-  if (min && max) return `${fmt(min)} – ${fmt(max)} / yr`;
-  if (min) return `From ${fmt(min)} / yr`;
-  if (max) return `Up to ${fmt(max)} / yr`;
-  return "";
-}
+
 
 /**
  * Normalizes a raw Adzuna job object into the standard NormalizedJob shape.
  */
 function normalizeAdzunaJob(result, currency = "INR") {
-  const salaryMin = result.salary_min ? Math.round(result.salary_min) : null;
-  const salaryMax = result.salary_max ? Math.round(result.salary_max) : null;
+  const rawMin = result.salary_min ? Math.round(result.salary_min) : null;
+  const rawMax = result.salary_max ? Math.round(result.salary_max) : null;
+
+  let salaryMin = rawMin;
+  let salaryMax = rawMax;
+  let salaryCurrency = "INR";
+
+  if ((currency || "").toUpperCase() === "USD") {
+    salaryMin = convertUSDToINR(rawMin);
+    salaryMax = convertUSDToINR(rawMax);
+  }
+
+  const salaryDisplay = formatSalaryRangeINR(salaryMin, salaryMax, "INR");
+
   const locationDisplay =
     result.location?.display_name ||
     (Array.isArray(result.location?.area)
@@ -98,9 +96,9 @@ function normalizeAdzunaJob(result, currency = "INR") {
     salary_min: salaryMin,
     salaryMax,
     salary_max: salaryMax,
-    salaryCurrency: currency,
-    salary_currency: currency,
-    salaryDisplay: formatSalaryDisplay(salaryMin, salaryMax, currency),
+    salaryCurrency,
+    salary_currency: salaryCurrency,
+    salaryDisplay,
     postedAt,
     posted_date: postedAt,
     importedAt,
