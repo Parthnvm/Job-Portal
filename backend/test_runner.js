@@ -298,46 +298,64 @@ async function runTests() {
   record("USD to INR string: '140k' -> 1,16,20,000", convertUSDToINR("140k") === 11620000, `Result: ${convertUSDToINR("140k")}`);
   record("USD to INR string: '$180k' -> 1,49,40,000", convertUSDToINR("$180k") === 14940000, `Result: ${convertUSDToINR("$180k")}`);
 
-  // Test Indian number formatting
-  record("Indian format: 1,00,000", formatINR(100000) === "₹1,00,000", `Formatted: "${formatINR(100000)}"`);
-  record("Indian format: 5,50,000", formatINR(550000) === "₹5,50,000", `Formatted: "${formatINR(550000)}"`);
-  record("Indian format: 12,50,000", formatINR(1250000) === "₹12,50,000", `Formatted: "${formatINR(1250000)}"`);
-  record("Indian format: 25,00,000", formatINR(2500000) === "₹25,00,000", `Formatted: "${formatINR(2500000)}"`);
-  record("Indian format: 1,25,00,000", formatINR(12500000) === "₹1,25,00,000", `Formatted: "${formatINR(12500000)}"`);
+  // Test Indian abbreviated number formatting (₹1L, ₹10L, ₹25L, ₹1Cr, ₹1.5Cr, etc.)
+  record("Indian format: 1,00,000 -> ₹1L", formatINR(100000) === "₹1L", `Formatted: "${formatINR(100000)}"`);
+  record("Indian format: 2,50,000 -> ₹2.5L", formatINR(250000) === "₹2.5L", `Formatted: "${formatINR(250000)}"`);
+  record("Indian format: 5,50,000 -> ₹5.5L", formatINR(550000) === "₹5.5L", `Formatted: "${formatINR(550000)}"`);
+  record("Indian format: 10,00,000 -> ₹10L", formatINR(1000000) === "₹10L", `Formatted: "${formatINR(1000000)}"`);
+  record("Indian format: 12,50,000 -> ₹12.5L", formatINR(1250000) === "₹12.5L", `Formatted: "${formatINR(1250000)}"`);
+  record("Indian format: 25,00,000 -> ₹25L", formatINR(2500000) === "₹25L", `Formatted: "${formatINR(2500000)}"`);
+  record("Indian format: 1,00,00,000 -> ₹1Cr", formatINR(10000000) === "₹1Cr", `Formatted: "${formatINR(10000000)}"`);
+  record("Indian format: 1,50,00,000 -> ₹1.5Cr", formatINR(15000000) === "₹1.5Cr", `Formatted: "${formatINR(15000000)}"`);
+  record("Indian format: 10,00,00,000 -> ₹10Cr", formatINR(100000000) === "₹10Cr", `Formatted: "${formatINR(100000000)}"`);
+  record("Indian format: 35,000 -> ₹35k", formatINR(35000) === "₹35k", `Formatted: "${formatINR(35000)}"`);
 
   // Test salary range formatting & conversion
   const usdRangeFmt = formatSalaryRangeINR(40000, 60000, "USD");
-  record("Range USD conversion: $40,000 - $60,000 -> ₹33,20,000 - ₹49,80,000 / yr",
-    usdRangeFmt === "₹33,20,000 - ₹49,80,000 / yr",
+  record("Range USD conversion: $40,000 - $60,000 -> ₹33.2L - ₹49.8L / yr",
+    usdRangeFmt === "₹33.2L - ₹49.8L / yr",
     `Formatted: "${usdRangeFmt}"`
   );
 
   const inrRangeFmt = formatSalaryRangeINR(1200000, 1800000, "INR");
-  record("Range INR preservation (no double conversion): ₹12,00,000 - ₹18,00,000 / yr",
-    inrRangeFmt === "₹12,00,000 - ₹18,00,000 / yr",
+  record("Range INR formatting: 12L - 18L / yr",
+    inrRangeFmt === "₹12L - ₹18L / yr",
     `Formatted: "${inrRangeFmt}"`
   );
 
+  // Test internal consistency: min never greater than max
+  const invertedRangeFmt = formatSalaryRangeINR(1800000, 1200000, "INR");
+  record("Range consistency: min <= max auto-ordering (18L, 12L) -> ₹12L - ₹18L / yr",
+    invertedRangeFmt === "₹12L - ₹18L / yr",
+    `Formatted: "${invertedRangeFmt}"`
+  );
+
   // Test edge cases: missing min, missing max, null, undefined, zero, decimal
-  record("Range with min only", formatSalaryRangeINR(1000000, null, "INR") === "From ₹10,00,000 / yr");
-  record("Range with max only", formatSalaryRangeINR(null, 2000000, "INR") === "Up to ₹20,00,000 / yr");
+  record("Range with min only", formatSalaryRangeINR(1000000, null, "INR") === "From ₹10L / yr");
+  record("Range with max only", formatSalaryRangeINR(null, 2000000, "INR") === "Up to ₹20L / yr");
   record("Range with nulls", formatSalaryRangeINR(null, null, "INR", "Competitive") === "Competitive");
   record("Null amount conversion", convertUSDToINR(null) === null);
   record("Undefined amount conversion", convertUSDToINR(undefined) === null);
   record("Zero conversion", convertUSDToINR(0) === 0);
   record("Decimal rounding: 1234.56 * 83 -> 102468", convertUSDToINR(1234.56) === 102468);
 
-  // Test string parsing with prevention of double conversion
+  // Test string parsing with Lakh/Crore abbreviation
   const parsedUsdStr = parseAndConvertSalaryString("$140k – $180k");
-  record("String parse USD: $140k – $180k -> ₹1,16,20,000 - ₹1,49,40,000",
-    parsedUsdStr.includes("₹1,16,20,000") && parsedUsdStr.includes("₹1,49,40,000"),
+  record("String parse USD: $140k – $180k -> ₹1.16Cr - ₹1.49Cr",
+    parsedUsdStr.includes("₹1.16Cr") && parsedUsdStr.includes("₹1.49Cr"),
     `Result: "${parsedUsdStr}"`
   );
 
   const parsedInrStr = parseAndConvertSalaryString("₹8,00,000 - ₹14,00,000 / yr");
-  record("String parse INR preservation: ₹8,00,000 - ₹14,00,000 / yr untouched",
-    parsedInrStr === "₹8,00,000 - ₹14,00,000 / yr",
+  record("String parse INR comma conversion: ₹8,00,000 - ₹14,00,000 / yr -> ₹8L - ₹14L / yr",
+    parsedInrStr === "₹8L - ₹14L / yr",
     `Result: "${parsedInrStr}"`
+  );
+
+  const parsedStipendStr = parseAndConvertSalaryString("₹35,000 / month Stipend");
+  record("String parse Stipend: ₹35,000 / month Stipend -> ₹35k / month Stipend",
+    parsedStipendStr === "₹35k / month Stipend",
+    `Result: "${parsedStipendStr}"`
   );
   console.log("\n==================================================");
   console.log("TEST SUMMARY");

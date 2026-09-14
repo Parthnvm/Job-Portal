@@ -1,7 +1,7 @@
 import { Job } from "../models/job.model.js";
 import { ExternalJob } from "../models/externalJob.model.js";
 import { Company } from "../models/company.model.js";
-import { convertUSDToINR, formatSalaryRangeINR } from "../utils/currency.js";
+import { convertUSDToINR, formatSalaryRangeINR, formatSalaryDisplay } from "../utils/currency.js";
 
 // for admin
 export const postJob = async (req, res) => {
@@ -77,9 +77,7 @@ export const getAllJob = async (req, res) => {
 
     const processedInternalJobs = internalJobs.map((j) => {
       const jobObj = j.toObject ? j.toObject() : { ...j };
-      if (typeof jobObj.salary === "number" && jobObj.salary < 500000) {
-        jobObj.salary = convertUSDToINR(jobObj.salary);
-      }
+      jobObj.salaryDisplay = formatSalaryDisplay(jobObj.salary);
       return jobObj;
     });
 
@@ -116,6 +114,10 @@ export const getAllJob = async (req, res) => {
           description: j.description || "",
           requirements: j.skills || [],
           salary: sal,
+          salaryDisplay: sal,
+          salaryMin: j.salaryMin,
+          salaryMax: j.salaryMax,
+          salaryCurrency: j.salaryCurrency || "INR",
           location: j.location || "Remote",
           jobType: j.jobType || "Full-time",
           experiencelevel: j.experienceLevel || 0,
@@ -162,9 +164,7 @@ export const getJobById = async (req, res) => {
 
     if (job) {
       const jobObj = job.toObject ? job.toObject() : { ...job };
-      if (typeof jobObj.salary === "number" && jobObj.salary < 500000) {
-        jobObj.salary = convertUSDToINR(jobObj.salary);
-      }
+      jobObj.salaryDisplay = formatSalaryDisplay(jobObj.salary);
       job = jobObj;
     } else {
       const ext = await ExternalJob.findById(jobId).catch(() => null);
@@ -183,6 +183,10 @@ export const getJobById = async (req, res) => {
           description: ext.description || "",
           requirements: ext.skills || [],
           salary: sal,
+          salaryDisplay: sal,
+          salaryMin: ext.salaryMin,
+          salaryMax: ext.salaryMax,
+          salaryCurrency: ext.salaryCurrency || "INR",
           location: ext.location || "Remote",
           jobType: ext.jobType || "Full-time",
           experiencelevel: ext.experienceLevel || 0,

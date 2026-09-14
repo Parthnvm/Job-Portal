@@ -10,6 +10,7 @@ import {
   Plus,
   MapPin,
   Clock,
+  Banknote,
   X,
   Check,
   AlertTriangle,
@@ -27,29 +28,12 @@ import {
   Cell
 } from "recharts";
 import { Button, Input, GlassCard, getRelativeTime } from "./JobPortal";
+import { formatSalaryDisplay } from "./utils/currency";
 import API from "./services/api";
-const T = {
-  bg: "#09090f",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceHov: "rgba(255,255,255,0.07)",
-  border: "rgba(255,255,255,0.08)",
-  borderHov: "rgba(124,106,247,0.4)",
-  purple: "#7c6af7",
-  purpleL: "#a090ff",
-  purpleDim: "rgba(124,106,247,0.15)",
-  green: "#4ade80",
-  greenDim: "rgba(74,222,128,0.12)",
-  pink: "#f472b6",
-  orange: "#fb923c",
-  red: "#ef4444",
-  redDim: "rgba(239,68,68,0.12)",
-  text: "#f0f0fa",
-  textMid: "#9090b8",
-  textDim: "#5a5a80",
-  font: "'DM Sans', sans-serif",
-  serif: "'DM Serif Display', serif"
-};
+import { useTheme, ThemeToggle, T } from "./context/ThemeContext";
+
 function RecruiterNavbar({ onSignOut, onOpenPostModal, userName = "Recruiter", activeTab, onTabChange }) {
+  const { isDark } = useTheme();
   const initials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -75,7 +59,10 @@ function RecruiterNavbar({ onSignOut, onOpenPostModal, userName = "Recruiter", a
   })}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={onOpenPostModal}>Post Job</Button>
           
           <div style={{ position: "relative" }}>
@@ -88,13 +75,13 @@ function RecruiterNavbar({ onSignOut, onOpenPostModal, userName = "Recruiter", a
             </button>
             
             <AnimatePresence>
-              {isNotifOpen && <div style={{ position: "absolute", top: 32, right: 0, width: 320, background: "rgba(12,10,24,0.96)", border: `1px solid ${T.border}`, borderRadius: 12, padding: 16, boxShadow: "0 20px 40px rgba(0,0,0,0.6)", zIndex: 1e3, backdropFilter: "blur(12px)" }}>
+              {isNotifOpen && <div style={{ position: "absolute", top: 32, right: 0, width: 320, background: isDark ? "rgba(12,10,24,0.96)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 12, padding: 16, boxShadow: isDark ? "0 20px 40px rgba(0,0,0,0.6)" : "0 12px 36px rgba(0,0,0,0.12)", zIndex: 1e3, backdropFilter: "blur(12px)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, borderBottom: `1px solid ${T.border}`, paddingBottom: 8, alignItems: "center" }}>
                     <span style={{ fontSize: "0.85rem", fontWeight: 600, color: T.text }}>Notifications</span>
                     {unreadCount > 0 && <span onClick={handleMarkAllRead} style={{ fontSize: "0.72rem", color: T.purpleL, cursor: "pointer", fontWeight: 500 }}>Mark all read</span>}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 240, overflowY: "auto" }}>
-                    {notifications.map((n) => <div key={n.id} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px", borderRadius: 8, background: n.read ? "transparent" : "rgba(255,255,255,0.02)", borderLeft: n.read ? "none" : `3px solid ${T.purple}`, transition: "all 0.2s" }}>
+                    {notifications.map((n) => <div key={n.id} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px", borderRadius: 8, background: n.read ? "transparent" : (isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"), borderLeft: n.read ? "none" : `3px solid ${T.purple}`, transition: "all 0.2s" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontSize: "0.8rem", fontWeight: 600, color: T.text }}>{n.title}</span>
                           <span style={{ fontSize: "0.65rem", color: T.textDim }}>{n.time}</span>
@@ -297,6 +284,7 @@ function CompanyProfileView({ company, onUpdate }) {
     </div>;
 }
 export function JobPortalRecruiterView({ onSignOut }) {
+  const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [activeSubTab, setActiveSubTab] = useState("Overview");
   const [jobs, setJobs] = useState([]);
@@ -523,8 +511,9 @@ export function JobPortalRecruiterView({ onSignOut }) {
                               <span style={{ fontSize: "1.1rem", fontWeight: 600, color: T.text }}>{job.title}</span>
                               <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.green }} />
                             </div>
-                            <div style={{ display: "flex", gap: 12, fontSize: "0.75rem", color: T.textDim, marginBottom: 16 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: "0.75rem", color: T.textDim, marginBottom: 16 }}>
                               <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} />{job.location}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Banknote size={12} />{formatSalaryDisplay(job.salary, job)}</span>
                               <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} />Posted {getRelativeTime(job.createdAt)}</span>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
@@ -565,9 +554,9 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                   <XAxis dataKey="name" stroke={T.textDim} fontSize={11} tickLine={false} />
                                   <YAxis stroke={T.textDim} fontSize={11} tickLine={false} allowDecimals={false} />
                                   <Tooltip
-      contentStyle={{ background: "#121020", border: `1px solid ${T.border}`, borderRadius: 8 }}
+      contentStyle={{ background: isDark ? "#121020" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 8, boxShadow: isDark ? "none" : "0 4px 14px rgba(0,0,0,0.1)" }}
       labelStyle={{ color: T.text, fontSize: 12, fontWeight: 600 }}
-      itemStyle={{ color: T.purpleL, fontSize: 12 }}
+      itemStyle={{ color: T.purple, fontSize: 12 }}
     />
                                   <Bar dataKey="Applicants" fill={T.purple} radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -618,7 +607,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
       value={selectedJobId}
       onChange={(e) => setSelectedJobId(e.target.value)}
       style={{
-        background: "#120a2a",
+        background: isDark ? "#120a2a" : "#ffffff",
         border: `1px solid ${T.border}`,
         color: T.text,
         fontSize: "0.8rem",
@@ -649,7 +638,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                           {
       /* Column 1: Pending */
     }
-                          <div style={{ background: "rgba(255,255,255,0.01)", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
+                          <div style={{ background: isDark ? "rgba(255,255,255,0.01)" : "#f8fafc", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
                               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: T.textMid, display: "flex", alignItems: "center", gap: 6 }}>
                                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#facc15" }} /> Pending Review
@@ -663,7 +652,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                               {columns.pending.length === 0 ? <div style={{ textAlign: "center", padding: "40px 0", color: T.textDim, fontSize: "0.8rem" }}>No candidates</div> : columns.pending.map((a) => {
       const cName = a.applicant?.fullname || "Candidate";
       const cInit = cName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-      return <div key={a._id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14 }}>
+      return <div key={a._id} style={{ background: isDark ? T.surface : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)" }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: T.purpleDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL, fontSize: "0.75rem", fontWeight: 700 }}>{cInit}</div>
                                         <div>
@@ -693,7 +682,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                           {
       /* Column 2: Shortlisted */
     }
-                          <div style={{ background: "rgba(255,255,255,0.01)", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
+                          <div style={{ background: isDark ? "rgba(255,255,255,0.01)" : "#f8fafc", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
                               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: T.textMid, display: "flex", alignItems: "center", gap: 6 }}>
                                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80" }} /> Shortlisted
@@ -707,7 +696,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                               {columns.accepted.length === 0 ? <div style={{ textAlign: "center", padding: "40px 0", color: T.textDim, fontSize: "0.8rem" }}>No candidates</div> : columns.accepted.map((a) => {
       const cName = a.applicant?.fullname || "Candidate";
       const cInit = cName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-      return <div key={a._id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14 }}>
+      return <div key={a._id} style={{ background: isDark ? T.surface : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)" }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: T.purpleDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL, fontSize: "0.75rem", fontWeight: 700 }}>{cInit}</div>
                                         <div>
@@ -718,7 +707,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                       <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
                                         <button
         onClick={() => handleUpdateStatus(a._id, "pending")}
-        style={{ flex: 1, padding: "5px 0", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 6, color: T.textMid, cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+        style={{ flex: 1, padding: "5px 0", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${T.border}`, borderRadius: 6, color: T.textMid, cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
       >
                                           Reset Pending
                                         </button>
@@ -737,7 +726,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                           {
       /* Column 3: Rejected */
     }
-                          <div style={{ background: "rgba(255,255,255,0.01)", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
+                          <div style={{ background: isDark ? "rgba(255,255,255,0.01)" : "#f8fafc", border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, minHeight: 380, display: "flex", flexDirection: "column" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
                               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: T.textMid, display: "flex", alignItems: "center", gap: 6 }}>
                                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} /> Rejected
@@ -751,7 +740,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                               {columns.rejected.length === 0 ? <div style={{ textAlign: "center", padding: "40px 0", color: T.textDim, fontSize: "0.8rem" }}>No candidates</div> : columns.rejected.map((a) => {
       const cName = a.applicant?.fullname || "Candidate";
       const cInit = cName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-      return <div key={a._id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14 }}>
+      return <div key={a._id} style={{ background: isDark ? T.surface : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)" }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: T.purpleDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL, fontSize: "0.75rem", fontWeight: 700 }}>{cInit}</div>
                                         <div>
@@ -768,7 +757,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                         </button>
                                         <button
         onClick={() => handleUpdateStatus(a._id, "pending")}
-        style={{ flex: 1, padding: "5px 0", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 6, color: T.textMid, cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+        style={{ flex: 1, padding: "5px 0", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${T.border}`, borderRadius: 6, color: T.textMid, cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
       >
                                           Reset Pending
                                         </button>
@@ -792,13 +781,13 @@ export function JobPortalRecruiterView({ onSignOut }) {
     /* ─── Post Job Glass Modal ───────────────────────────────────────────── */
   }
       <AnimatePresence>
-        {isPostModalOpen && <div style={{ position: "fixed", inset: 0, zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(9, 9, 15, 0.75)", backdropFilter: "blur(10px)" }}>
+        {isPostModalOpen && <div style={{ position: "fixed", inset: 0, zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "rgba(9, 9, 15, 0.75)" : "rgba(15, 23, 42, 0.45)", backdropFilter: "blur(10px)" }}>
             <motion.div
     initial={{ opacity: 0, scale: 0.95, y: 16 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     exit={{ opacity: 0, scale: 0.95, y: 16 }}
     transition={{ duration: 0.25 }}
-    style={{ background: "rgba(12, 10, 24, 0.92)", border: `1px solid ${T.border}`, borderRadius: 20, width: "100%", maxWidth: 540, padding: 32, boxSizing: "border-box", boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)", maxHeight: "90vh", overflowY: "auto" }}
+    style={{ background: isDark ? "rgba(12, 10, 24, 0.94)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 20, width: "100%", maxWidth: 540, padding: 32, boxSizing: "border-box", boxShadow: isDark ? "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)" : "0 24px 60px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}
   >
               {
     /* Modal header */
@@ -882,6 +871,11 @@ export function JobPortalRecruiterView({ onSignOut }) {
                   <div>
                     <label style={{ display: "block", fontSize: "0.8rem", color: T.textMid, marginBottom: 6, fontWeight: 500 }}>Salary (INR / year)</label>
                     <Input type="number" placeholder="1200000" value={jobSalary} onChange={(e) => setJobSalary(e.target.value)} required />
+                    {jobSalary && Number(jobSalary) > 0 && (
+                      <div style={{ fontSize: "0.75rem", color: T.purpleL, marginTop: 4 }}>
+                        Display: {formatSalaryDisplay(Number(jobSalary))} / yr
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.8rem", color: T.textMid, marginBottom: 6, fontWeight: 500 }}>Location</label>
@@ -897,7 +891,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
     onChange={(e) => setJobType(e.target.value)}
     style={{
       width: "100%",
-      background: `#120a2a url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239090b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 14px center/16px`,
+      background: `${isDark ? "#120a2a" : "#ffffff"} url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239090b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 14px center/16px`,
       appearance: "none",
       WebkitAppearance: "none",
       MozAppearance: "none",
@@ -912,10 +906,10 @@ export function JobPortalRecruiterView({ onSignOut }) {
       boxSizing: "border-box"
     }}
   >
-                      <option value="Full-time" style={{ background: "#120a2a", color: T.text }}>Full-time</option>
-                      <option value="Hybrid" style={{ background: "#120a2a", color: T.text }}>Hybrid</option>
-                      <option value="Part-time" style={{ background: "#120a2a", color: T.text }}>Part-time</option>
-                      <option value="Contract" style={{ background: "#120a2a", color: T.text }}>Contract</option>
+                      <option value="Full-time" style={{ background: isDark ? "#120a2a" : "#ffffff", color: T.text }}>Full-time</option>
+                      <option value="Hybrid" style={{ background: isDark ? "#120a2a" : "#ffffff", color: T.text }}>Hybrid</option>
+                      <option value="Part-time" style={{ background: isDark ? "#120a2a" : "#ffffff", color: T.text }}>Part-time</option>
+                      <option value="Contract" style={{ background: isDark ? "#120a2a" : "#ffffff", color: T.text }}>Contract</option>
                     </select>
                   </div>
                   <div>

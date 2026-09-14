@@ -8,7 +8,7 @@ import {
   Briefcase,
   BookmarkPlus,
   Clock,
-  IndianRupee,
+  Banknote,
   ArrowRight,
   Bell,
   Bookmark,
@@ -16,36 +16,21 @@ import {
 } from "lucide-react";
 import { Button, Input, GlassCard, getRelativeTime } from "./JobPortal";
 import { ResumeAnalyzerView } from "./JobPortalResumeAnalyzer";
-import { formatSalaryDisplay } from "./utils/currency";
+import { formatSalaryDisplay, getJobNumericSalary } from "./utils/currency";
 import API from "./services/api";
-const T = {
-  bg: "#09090f",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceHov: "rgba(255,255,255,0.07)",
-  border: "rgba(255,255,255,0.08)",
-  borderHov: "rgba(124,106,247,0.4)",
-  purple: "#7c6af7",
-  purpleL: "#a090ff",
-  purpleDim: "rgba(124,106,247,0.15)",
-  green: "#4ade80",
-  greenDim: "rgba(74,222,128,0.12)",
-  pink: "#f472b6",
-  orange: "#fb923c",
-  yellow: "#facc15",
-  red: "#ef4444",
-  redDim: "rgba(239,68,68,0.12)",
-  text: "#f0f0fa",
-  textMid: "#9090b8",
-  textDim: "#5a5a80",
-  font: "'DM Sans', sans-serif",
-  serif: "'DM Serif Display', serif"
-};
-function Tag({ children, color = T.purpleDim, textColor = T.purpleL }) {
-  return <span style={{ padding: "4px 10px", background: color, borderRadius: 20, fontSize: "0.72rem", fontWeight: 600, color: textColor, whiteSpace: "nowrap" }}>
+import { useTheme, ThemeToggle, T } from "./context/ThemeContext";
+
+function Tag({ children, color, textColor }) {
+  const { isDark } = useTheme();
+  const bg = color || (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)");
+  const text = textColor || (isDark ? T.textMid : T.textMid);
+  return <span style={{ padding: "4px 10px", background: bg, borderRadius: 20, fontSize: "0.72rem", fontWeight: 600, color: text, whiteSpace: "nowrap" }}>
       {children}
     </span>;
 }
+
 function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candidate" }) {
+  const { isDark } = useTheme();
   const initials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -70,8 +55,8 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
         <div style={{ display: "flex", gap: 2, flex: 1, overflow: "hidden" }}>
           {NAV_TABS.map((l) => {
     const isActive = activeTab === l;
-    return <button key={l} onClick={() => { onTabChange(l); setMobileMenuOpen(false); }} style={{ padding: "7px 13px", background: isActive ? "linear-gradient(135deg, rgba(124,106,247,0.22), rgba(91,78,224,0.16))" : "transparent", border: isActive ? `1px solid rgba(124,106,247,0.35)` : "1px solid transparent", color: isActive ? "#e8e4ff" : T.textMid, fontSize: "0.82rem", fontWeight: isActive ? 600 : 400, cursor: "pointer", borderRadius: 9, fontFamily: T.font, transition: "all 0.18s", whiteSpace: "nowrap", flexShrink: 0 }}
-      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = T.text; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}}
+    return <button key={l} onClick={() => { onTabChange(l); setMobileMenuOpen(false); }} style={{ padding: "7px 13px", background: isActive ? (isDark ? "linear-gradient(135deg, rgba(124,106,247,0.22), rgba(91,78,224,0.16))" : "rgba(109,90,230,0.12)") : "transparent", border: isActive ? `1px solid ${isDark ? "rgba(124,106,247,0.35)" : "rgba(109,90,230,0.28)"}` : "1px solid transparent", color: isActive ? (isDark ? "#e8e4ff" : "#5b48e0") : T.textMid, fontSize: "0.82rem", fontWeight: isActive ? 600 : 400, cursor: "pointer", borderRadius: 9, fontFamily: T.font, transition: "all 0.18s", whiteSpace: "nowrap", flexShrink: 0 }}
+      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = T.text; e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"; }}}
       onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = T.textMid; e.currentTarget.style.background = "transparent"; }}}
     >
               {l}
@@ -81,12 +66,15 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
 
         {/* Right Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Notification Bell */}
           <div style={{ position: "relative" }}>
             <button
     onClick={() => { setIsNotifOpen(!isNotifOpen); setMobileMenuOpen(false); }}
     style={{ background: isNotifOpen ? "rgba(124,106,247,0.12)" : "none", border: isNotifOpen ? `1px solid rgba(124,106,247,0.35)` : `1px solid transparent`, borderRadius: 9, color: isNotifOpen ? T.purpleL : T.textDim, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", padding: "7px", transition: "all 0.18s", width: 36, height: 36 }}
-    onMouseEnter={(e) => { if (!isNotifOpen) { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = T.textMid; }}}
+    onMouseEnter={(e) => { if (!isNotifOpen) { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"; e.currentTarget.style.color = T.textMid; }}}
     onMouseLeave={(e) => { if (!isNotifOpen) { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.textDim; }}}
   >
               <Bell size={17} />
@@ -94,7 +82,7 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
             </button>
             
             <AnimatePresence>
-              {isNotifOpen && <motion.div initial={{ opacity: 0, y: -8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }} transition={{ duration: 0.15 }} style={{ position: "absolute", top: 44, right: 0, width: 320, background: "rgba(10,8,20,0.97)", border: `1px solid ${T.border}`, borderRadius: 14, padding: 16, boxShadow: "0 24px 48px rgba(0,0,0,0.65)", zIndex: 1e3, backdropFilter: "blur(20px)" }}>
+              {isNotifOpen && <motion.div initial={{ opacity: 0, y: -8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }} transition={{ duration: 0.15 }} style={{ position: "absolute", top: 44, right: 0, width: 320, background: isDark ? "rgba(10,8,20,0.97)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 14, padding: 16, boxShadow: isDark ? "0 24px 48px rgba(0,0,0,0.65)" : "0 12px 36px rgba(0,0,0,0.12)", zIndex: 1e3, backdropFilter: "blur(20px)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${T.border}`, alignItems: "center" }}>
                     <span style={{ fontSize: "0.85rem", fontWeight: 600, color: T.text }}>Notifications</span>
                     {unreadCount > 0 && <span onClick={handleMarkAllRead} style={{ fontSize: "0.72rem", color: T.purpleL, cursor: "pointer", fontWeight: 500 }}>Mark all read</span>}
@@ -102,7 +90,7 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 260, overflowY: "auto" }}>
                     {notifications.length === 0
                       ? <div style={{ textAlign: "center", padding: "24px 0", color: T.textDim, fontSize: "0.82rem" }}>🔔 No notifications yet</div>
-                      : notifications.map((n) => <div key={n.id} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px", borderRadius: 8, background: n.read ? "transparent" : "rgba(255,255,255,0.02)", borderLeft: n.read ? "none" : `3px solid ${T.purple}`, transition: "all 0.2s" }}>
+                      : notifications.map((n) => <div key={n.id} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px", borderRadius: 8, background: n.read ? "transparent" : (isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"), borderLeft: n.read ? "none" : `3px solid ${T.purple}`, transition: "all 0.2s" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontSize: "0.8rem", fontWeight: 600, color: T.text }}>{n.title}</span>
                           <span style={{ fontSize: "0.65rem", color: T.textDim }}>{n.time}</span>
@@ -126,8 +114,8 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
             </div>
           
           {/* Sign Out */}
-          <button onClick={onSignOut} style={{ fontSize: "0.78rem", color: T.textDim, background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, cursor: "pointer", padding: "6px 12px", fontFamily: T.font, transition: "all 0.18s", whiteSpace: "nowrap" }}
-    onMouseEnter={(e) => { e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
+          <button onClick={onSignOut} style={{ fontSize: "0.78rem", color: T.textDim, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, cursor: "pointer", padding: "6px 12px", fontFamily: T.font, transition: "all 0.18s", whiteSpace: "nowrap" }}
+    onMouseEnter={(e) => { e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)"; }}
     onMouseLeave={(e) => { e.currentTarget.style.color = T.textDim; e.currentTarget.style.borderColor = T.border; }}
   >Sign Out</button>
         </div>
@@ -135,7 +123,7 @@ function ApplicantNavbar({ onSignOut, activeTab, onTabChange, userName = "Candid
 
       {/* Mobile dropdown menu */}
       <AnimatePresence>
-        {mobileMenuOpen && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ borderTop: `1px solid ${T.border}`, background: "rgba(9,9,15,0.98)", overflow: "hidden" }}>
+        {mobileMenuOpen && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ borderTop: `1px solid ${T.border}`, background: isDark ? "rgba(9,9,15,0.98)" : "#ffffff", overflow: "hidden" }}>
             <div style={{ padding: "12px 20px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
               {NAV_TABS.map((l) => {
     const isActive = activeTab === l;
@@ -376,6 +364,7 @@ function ProfileView({
     </div>;
 }
 export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobConsumed }) {
+  const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState("Browse Jobs");
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -513,6 +502,8 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
         if (f === "Remote" && !job.location.toLowerCase().includes("remote")) matchesFilter = false;
         if (f === "Engineering" && !job.title.toLowerCase().includes("engineer") && !job.title.toLowerCase().includes("developer") && !job.title.toLowerCase().includes("frontend") && !job.title.toLowerCase().includes("backend")) matchesFilter = false;
         if (f === "Full-time" && job.jobType !== "Full-time") matchesFilter = false;
+        if (f === "₹10L+" && getJobNumericSalary(job) < 1000000) matchesFilter = false;
+        if (f === "₹20L+" && getJobNumericSalary(job) < 2000000) matchesFilter = false;
       });
       if (!matchesFilter) return false;
     }
@@ -525,7 +516,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   const startIndex = (currentPage - 1) * jobsPerPage;
   const paginatedJobs = displayedJobs.slice(startIndex, startIndex + jobsPerPage);
   const formatSal = (sal, item = null) => {
-    return formatSalaryDisplay(item?.salaryDisplay || sal);
+    return formatSalaryDisplay(item?.salaryDisplay || sal, item);
   };
   const getMatchScore = (jobId, jobReqs) => {
     if (!jobReqs || jobReqs.length === 0) return 0;
@@ -655,7 +646,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                             <span style={{ fontSize: "0.68rem", color: T.text, marginTop: 4, fontWeight: 500 }}>Applied</span>
                             <span style={{ fontSize: "0.6rem", color: T.textDim, marginTop: 2 }}>{new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             
-                            <div style={{ position: "absolute", top: 11, left: "calc(50% + 11px)", right: "-50%", height: 2, background: app.status?.toLowerCase() !== "pending" ? T.green : "rgba(255,255,255,0.08)", zIndex: 1 }} />
+                            <div style={{ position: "absolute", top: 11, left: "calc(50% + 11px)", right: "-50%", height: 2, background: app.status?.toLowerCase() !== "pending" ? T.green : T.border, zIndex: 1 }} />
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, position: "relative", zIndex: 2 }}>
@@ -677,7 +668,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                             <span style={{ fontSize: "0.68rem", color: T.text, marginTop: 4, fontWeight: 500 }}>Screening</span>
                             <span style={{ fontSize: "0.6rem", color: T.textDim, marginTop: 2 }}>{app.status?.toLowerCase() !== "pending" ? "Completed" : "Under Review"}</span>
 
-                            <div style={{ position: "absolute", top: 11, left: "calc(50% + 11px)", right: "-50%", height: 2, background: app.status?.toLowerCase() === "accepted" ? T.green : app.status?.toLowerCase() === "rejected" ? T.red : "rgba(255,255,255,0.08)", zIndex: 1 }} />
+                            <div style={{ position: "absolute", top: 11, left: "calc(50% + 11px)", right: "-50%", height: 2, background: app.status?.toLowerCase() === "accepted" ? T.green : app.status?.toLowerCase() === "rejected" ? T.red : T.border, zIndex: 1 }} />
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, position: "relative", zIndex: 2 }}>
@@ -685,7 +676,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
         width: 22,
         height: 22,
         borderRadius: "50%",
-        background: app.status?.toLowerCase() === "accepted" ? T.greenDim : app.status?.toLowerCase() === "rejected" ? T.redDim : "rgba(255,255,255,0.05)",
+        background: app.status?.toLowerCase() === "accepted" ? T.greenDim : app.status?.toLowerCase() === "rejected" ? T.redDim : T.surface,
         border: `2px solid ${app.status?.toLowerCase() === "accepted" ? T.green : app.status?.toLowerCase() === "rejected" ? T.red : T.border}`,
         display: "flex",
         alignItems: "center",
@@ -713,7 +704,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
               {
       /* Left Column: Search & Job List */
     }
-              <div className="jobs-left-panel" style={{ flex: "0 0 40%", minWidth: 380, display: "flex", flexDirection: "column", height: "100%", minHeight: 0, borderRight: `1px solid ${T.border}`, background: "rgba(9,9,15,0.6)", overflowY: "auto" }}>
+              <div className="jobs-left-panel" style={{ flex: "0 0 40%", minWidth: 380, display: "flex", flexDirection: "column", height: "100%", minHeight: 0, borderRight: `1px solid ${T.border}`, background: isDark ? "rgba(9,9,15,0.6)" : "#f8fafc", overflowY: "auto" }}>
                 <div style={{ padding: "24px 24px 16px", borderBottom: `1px solid ${T.border}`, background: T.bg, flexShrink: 0, position: "sticky", top: 0, zIndex: 10 }}>
                   <h1 style={{ fontSize: "1.4rem", fontFamily: T.serif, color: T.text, margin: "0 0 16px" }}>
                     {activeTab === "Saved" ? "Your Saved Jobs" : "Recommended for you"}
@@ -728,7 +719,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     />
                   </div>
                   <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                    {["Remote", "Engineering", "Full-time"].map((f) => {
+                    {["Remote", "Engineering", "Full-time", "₹10L+", "₹20L+"].map((f) => {
       const isSel = selectedFilters.has(f);
       return <button
         key={f}
@@ -777,14 +768,15 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
         key={job._id}
         onClick={() => setActiveJobId(job._id)}
         style={{
-          background: active ? T.purpleDim : T.surface,
-          border: `1px solid ${active ? T.purpleL + "55" : T.border}`,
+          background: active ? (isDark ? T.purpleDim : "rgba(124,106,247,0.12)") : (isDark ? T.surface : "#ffffff"),
+          border: `1px solid ${active ? T.purpleL + (isDark ? "55" : "88") : T.border}`,
           borderRadius: 12,
           padding: "16px 18px",
           cursor: "pointer",
           transition: "all 0.2s",
           position: "relative",
-          flexShrink: 0
+          flexShrink: 0,
+          boxShadow: isDark ? "none" : (active ? "0 4px 14px rgba(124,106,247,0.12)" : "0 1px 3px rgba(0,0,0,0.05)")
         }}
       >
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
@@ -813,13 +805,13 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                           
                           <div style={{ display: "flex", gap: 12, fontSize: "0.75rem", color: T.textMid, marginBottom: 10 }}>
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} />{job.location || "India"}</span>
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><IndianRupee size={12} />{formatSal(job.salary, job)}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Banknote size={12} />{formatSal(job.salary, job)}</span>
                           </div>
 
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ display: "flex", gap: 6 }}>
-                              <Tag color="rgba(255,255,255,0.06)" textColor={T.textMid}>{job.jobType || "Full-time"}</Tag>
-                              <Tag color="rgba(255,255,255,0.06)" textColor={T.textMid}>{getRelativeTime(job.createdAt || job.postedAt)}</Tag>
+                              <Tag>{job.jobType || "Full-time"}</Tag>
+                              <Tag>{getRelativeTime(job.createdAt || job.postedAt)}</Tag>
                             </div>
                             <span style={{ fontSize: "0.72rem", fontWeight: 600, color: matchScore >= 80 ? T.green : T.orange, background: matchScore >= 80 ? T.greenDim : T.orange + "20", padding: "3px 8px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
                               ✨ {matchScore}% Match
@@ -974,8 +966,8 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
 
                     <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
                       <Tag color={T.greenDim} textColor={T.green}>{activeJob.jobType || "Full-time"}</Tag>
-                      <Tag color="rgba(255,255,255,0.06)" textColor={T.textMid}>{formatSal(activeJob.salary, activeJob)}</Tag>
-                      {(activeJob.requirements || activeJob.skills || []).slice(0, 5).map((t) => <Tag key={t} color="rgba(255,255,255,0.06)" textColor={T.textMid}>{t}</Tag>)}
+                      <Tag>{formatSal(activeJob.salary, activeJob)}</Tag>
+                      {(activeJob.requirements || activeJob.skills || []).slice(0, 5).map((t) => <Tag key={t}>{t}</Tag>)}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
@@ -1004,7 +996,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                     {
       /* ATS Skills Match Analysis */
     }
-                    <div style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 32 }}>
+                    <div style={{ background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 32 }}>
                       <h3 style={{ fontSize: "0.9rem", color: T.text, margin: "0 0 12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                         📊 ATS Skills Match Analysis
                       </h3>

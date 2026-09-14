@@ -7,6 +7,7 @@ import { Footer } from '../../components/common/Footer';
 import { useAppData } from '../../context/AppDataContext';
 import { JobCard } from '../../components/jobs/JobCard';
 import { AIChatModal } from '../../components/common/AIChatModal';
+import { getJobNumericSalary } from '../../utils/currency';
 
 export const FindJobsPage = () => {
   const { jobs, externalJobs = [] } = useAppData();
@@ -54,6 +55,8 @@ export const FindJobsPage = () => {
       .sort((a, b) => {
         if (sortBy === 'best-match') return (b.matchScore || 0) - (a.matchScore || 0);
         if (sortBy === 'ats') return (b.atsCompatibility || 0) - (a.atsCompatibility || 0);
+        if (sortBy === 'salary-high') return getJobNumericSalary(b) - getJobNumericSalary(a);
+        if (sortBy === 'salary-low') return getJobNumericSalary(a) - getJobNumericSalary(b);
         if (sortBy === 'latest') return new Date(b.postedDate || b.postedAt || 0) - new Date(a.postedDate || a.postedAt || 0);
         return 0;
       });
@@ -120,6 +123,8 @@ export const FindJobsPage = () => {
                 >
                   <option value="best-match">Best AI Match</option>
                   <option value="ats">Highest ATS Score</option>
+                  <option value="salary-high">Highest Salary (INR)</option>
+                  <option value="salary-low">Lowest Salary (INR)</option>
                   <option value="latest">Latest Jobs</option>
                 </select>
               </div>

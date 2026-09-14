@@ -6,6 +6,7 @@ import { JobPortalPublic } from "./JobPortal";
 import { JobPortalAuth } from "./JobPortalAuth";
 import { JobPortalApplicantView } from "./JobPortalApplicantView";
 import { JobPortalRecruiterView } from "./JobPortalRecruiterView";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import API from "./services/api";
 import {
   AreaChart,
@@ -948,7 +949,8 @@ const PAGES = {
   reports: <ReportsPage />,
   settings: <SettingsPage />
 };
-export default function App() {
+function AppContent() {
+  const { T } = useTheme();
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem("user");
     return saved ? JSON.parse(saved) : null;
@@ -1035,7 +1037,7 @@ export default function App() {
   };
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "1057421115865-dummyclientid.apps.googleusercontent.com";
   return <GoogleOAuthProvider clientId={googleClientId}>
-      <div style={{ background: C.bg, minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: T.bg, color: T.text, minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column", transition: "background-color 0.2s ease, color 0.15s ease" }}>
         <AnimatePresence mode="wait">
           {appMode === "portal" && <motion.div
     key="portal"
@@ -1126,4 +1128,12 @@ export default function App() {
         </AnimatePresence>
       </div>
     </GoogleOAuthProvider>;
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 }

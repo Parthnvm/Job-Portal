@@ -22,6 +22,7 @@ import {
   Globe,
   Clock,
   IndianRupee,
+  Banknote,
   ArrowRight,
   Zap,
   Star,
@@ -30,7 +31,8 @@ import {
   X
 } from "lucide-react";
 import API from "./services/api";
-import { formatSalaryDisplay } from "./utils/currency";
+import { formatSalaryDisplay, getJobNumericSalary } from "./utils/currency";
+import { useTheme, ThemeToggle, T, DARK_THEME, LIGHT_THEME } from "./context/ThemeContext";
 export const getRelativeTime = (dateStr) => {
   if (!dateStr) return "1d ago";
   const now = /* @__PURE__ */ new Date();
@@ -43,27 +45,7 @@ export const getRelativeTime = (dateStr) => {
   const diffDays = Math.floor(diffHrs / 24);
   return `${diffDays}d ago`;
 };
-const T = {
-  bg: "#09090f",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceHov: "rgba(255,255,255,0.07)",
-  border: "rgba(255,255,255,0.08)",
-  borderHov: "rgba(124,106,247,0.4)",
-  purple: "#7c6af7",
-  purpleL: "#a090ff",
-  purpleDim: "rgba(124,106,247,0.15)",
-  purpleGlow: "rgba(124,106,247,0.25)",
-  green: "#4ade80",
-  greenDim: "rgba(74,222,128,0.12)",
-  pink: "#f472b6",
-  orange: "#fb923c",
-  yellow: "#facc15",
-  text: "#f0f0fa",
-  textMid: "#9090b8",
-  textDim: "#5a5a80",
-  font: "'DM Sans', sans-serif",
-  serif: "'DM Serif Display', serif"
-};
+export { T };
 export function Button({
   variant = "primary",
   size = "md",
@@ -73,12 +55,13 @@ export function Button({
   style,
   ...props
 }) {
+  const { isDark } = useTheme();
   const sizes = { sm: "6px 12px", md: "9px 18px", lg: "12px 26px" };
   const fontSizes = { sm: "0.78rem", md: "0.875rem", lg: "0.9375rem" };
   const variants = {
     primary: { background: "linear-gradient(135deg, #7c6af7 0%, #5b4de0 100%)", color: "#fff", border: "none" },
     outline: { background: "transparent", color: T.purpleL, border: `1px solid ${T.borderHov}` },
-    ghost: { background: "transparent", color: T.textMid, border: `1px solid ${T.border}` },
+    ghost: { background: isDark ? "transparent" : "#f1f5f9", color: T.textMid, border: `1px solid ${T.border}` },
     green: { background: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)", color: "#09090f", border: "none" }
   };
   return <button
@@ -112,6 +95,7 @@ export function Button({
     </button>;
 }
 export function Input({ icon, wrapStyle, style, ...props }) {
+  const { isDark } = useTheme();
   const [focused, setFocused] = useState(false);
   return <div style={{ position: "relative", display: "flex", alignItems: "center", ...wrapStyle }}>
       {icon && <span style={{ position: "absolute", left: 13, color: focused ? T.purpleL : T.textDim, display: "flex", transition: "color 0.2s", pointerEvents: "none" }}>
@@ -128,7 +112,7 @@ export function Input({ icon, wrapStyle, style, ...props }) {
     }}
     style={{
       width: "100%",
-      background: T.surface,
+      background: isDark ? T.surface : "#ffffff",
       border: `1px solid ${focused ? T.borderHov : T.border}`,
       borderRadius: 10,
       padding: icon ? "11px 14px 11px 40px" : "11px 14px",
@@ -136,7 +120,7 @@ export function Input({ icon, wrapStyle, style, ...props }) {
       fontSize: "0.9rem",
       outline: "none",
       fontFamily: T.font,
-      transition: "border-color 0.2s",
+      transition: "border-color 0.2s, background-color 0.2s",
       ...style
     }}
     {...props}
@@ -166,18 +150,21 @@ function Tag({ children, color = T.purpleDim, textColor = T.purpleL, style = {} 
   </span>;
 }
 export function GlassCard({ children, style = {}, hover = true, onClick }) {
+  const { isDark } = useTheme();
   const [hov, setHov] = useState(false);
   return <div
     onClick={onClick}
     onMouseEnter={() => setHov(true)}
     onMouseLeave={() => setHov(false)}
     style={{
-      background: hov && hover ? T.surfaceHov : T.surface,
-      border: `1px solid ${hov && hover ? "rgba(124,106,247,0.2)" : T.border}`,
+      background: hov && hover ? T.surfaceHov : (isDark ? T.surface : "#ffffff"),
+      border: `1px solid ${hov && hover ? (isDark ? "rgba(124,106,247,0.2)" : "rgba(109,90,230,0.35)") : T.border}`,
       borderRadius: 14,
       transition: "all 0.2s",
       cursor: onClick ? "pointer" : "default",
-      boxShadow: hov && hover ? "0 8px 32px rgba(0,0,0,0.3)" : "none",
+      boxShadow: isDark
+        ? (hov && hover ? "0 8px 32px rgba(0,0,0,0.3)" : "none")
+        : (hov && hover ? "0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.04)" : "0 2px 10px -2px rgba(0,0,0,0.04)"),
       transform: hov && hover ? "translateY(-2px)" : "translateY(0)",
       ...style
     }}
@@ -195,6 +182,7 @@ function JobNavbar({
   activeSection,
   onSectionChange
 }) {
+  const { isDark, T } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -206,12 +194,12 @@ function JobNavbar({
     position: "sticky",
     top: 0,
     zIndex: 100,
-    background: "rgba(9,9,15,0.96)",
+    background: isDark ? "rgba(9,9,15,0.96)" : "rgba(255,255,255,0.92)",
     backdropFilter: "blur(16px)",
-    borderBottom: `1px solid ${scrolled ? "rgba(255,255,255,0.12)" : T.border}`,
+    borderBottom: `1px solid ${scrolled ? (isDark ? "rgba(255,255,255,0.12)" : "#cbd5e1") : T.border}`,
     height: 64,
     boxSizing: "border-box",
-    transition: "border-color 0.2s",
+    transition: "border-color 0.2s, background-color 0.2s",
     fontFamily: T.font
   }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", height: "100%", justifyContent: "space-between" }}>
@@ -239,9 +227,11 @@ function JobNavbar({
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: active ? "linear-gradient(135deg, rgba(124,106,247,0.22), rgba(91,78,224,0.16))" : "transparent",
-                border: active ? `1px solid rgba(124,106,247,0.35)` : "1px solid transparent",
-                color: active ? "#e8e4ff" : T.textMid,
+                background: active
+                  ? (isDark ? "linear-gradient(135deg, rgba(124,106,247,0.22), rgba(91,78,224,0.16))" : "rgba(109,90,230,0.12)")
+                  : "transparent",
+                border: active ? `1px solid ${isDark ? "rgba(124,106,247,0.35)" : "rgba(109,90,230,0.28)"}` : "1px solid transparent",
+                color: active ? (isDark ? "#e8e4ff" : "#5b48e0") : T.textMid,
                 fontSize: "0.85rem",
                 fontWeight: active ? 600 : 400,
                 cursor: "pointer",
@@ -253,7 +243,7 @@ function JobNavbar({
               onMouseEnter={(e) => {
                 if (!active) {
                   e.currentTarget.style.color = T.text;
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
                 }
               }}
               onMouseLeave={(e) => {
@@ -268,12 +258,13 @@ function JobNavbar({
 
         {/* Right actions */}
         <div className="nav-desktop-group" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <ThemeToggle />
           <button
             style={{
               width: 36,
               height: 36,
               padding: 0,
-              background: "rgba(255,255,255,0.03)",
+              background: isDark ? "rgba(255,255,255,0.03)" : "#f1f5f9",
               border: `1px solid ${T.border}`,
               color: T.textDim,
               cursor: "pointer",
@@ -286,12 +277,12 @@ function JobNavbar({
             onMouseEnter={(e) => {
               e.currentTarget.style.color = T.text;
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
-              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "#e2e8f0";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = T.textDim;
               e.currentTarget.style.borderColor = T.border;
-              e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.03)" : "#f1f5f9";
             }}
             title="Notifications"
           >
@@ -305,8 +296,8 @@ function JobNavbar({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "rgba(255,255,255,0.04)",
-              border: `1px solid ${T.border}`,
+              background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff",
+              border: `1px solid ${isDark ? T.border : "#cbd5e1"}`,
               borderRadius: 8,
               color: T.text,
               fontSize: "0.85rem",
@@ -318,11 +309,11 @@ function JobNavbar({
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
-              e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.07)" : "#f8fafc";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = T.border;
-              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              e.currentTarget.style.borderColor = isDark ? T.border : "#cbd5e1";
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#ffffff";
             }}
           >
             Log in
@@ -368,7 +359,7 @@ function JobNavbar({
             marginLeft: "auto",
             width: 36,
             height: 36,
-            background: "rgba(255,255,255,0.04)",
+            background: isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
             border: `1px solid ${T.border}`,
             borderRadius: 8,
             color: T.textMid,
@@ -388,7 +379,7 @@ function JobNavbar({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          style={{ background: "rgba(9,9,15,0.98)", borderBottom: `1px solid ${T.border}`, padding: "16px 24px 20px" }}
+          style={{ background: isDark ? "rgba(9,9,15,0.98)" : "rgba(255,255,255,0.98)", borderBottom: `1px solid ${T.border}`, padding: "16px 24px 20px" }}
         >
           {NAV_LINKS.map(({ label, section }) => <div
             key={section}
@@ -398,6 +389,10 @@ function JobNavbar({
             }}
             style={{ padding: "10px 0", color: activeSection === section ? T.purpleL : T.textMid, fontSize: "0.9rem", borderBottom: `1px solid ${T.border}`, cursor: "pointer", fontWeight: activeSection === section ? 600 : 400 }}
           >{label}</div>)}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: "0.85rem", color: T.textMid, fontWeight: 500 }}>Theme</span>
+            <ThemeToggle size="sm" />
+          </div>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <Button variant="ghost" size="sm" style={{ flex: 1, justifyContent: "center" }} onClick={() => { setMobileOpen(false); onAuthClick("login"); }}>Log in</Button>
             <Button variant="primary" size="sm" style={{ flex: 1, justifyContent: "center" }} onClick={() => { setMobileOpen(false); onAuthClick("signup"); }}>Post a Job</Button>
@@ -412,13 +407,16 @@ const HERO_STATS = [
   { icon: <Building2 size={18} />, value: "4,200+", label: "Companies" },
   { icon: <Users size={18} />, value: "89,000+", label: "Candidates" }
 ];
-function HeroSection({ onSearch }) {
+function HeroSection({
+  onSearch
+}) {
+  const { isDark, T } = useTheme();
   const [jobQuery, setJobQuery] = useState("");
   const [location, setLocation] = useState("");
-  return <section style={{ position: "relative", overflow: "hidden", padding: "80px 32px 96px", fontFamily: T.font }}>
-      <div style={{ position: "absolute", top: -120, left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,106,247,0.13) 0%, transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: -80, right: "10%", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(74,222,128,0.09) 0%, transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at center, rgba(157,200,255,0.06) 1px, transparent 1.2px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+  return <section style={{ position: "relative", padding: "64px 24px 72px", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: -120, left: "30%", width: 500, height: 500, borderRadius: "50%", background: isDark ? "radial-gradient(circle, rgba(124,106,247,0.13) 0%, transparent 65%)" : "radial-gradient(circle, rgba(109,90,230,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -80, right: "10%", width: 360, height: 360, borderRadius: "50%", background: isDark ? "radial-gradient(circle, rgba(74,222,128,0.09) 0%, transparent 65%)" : "radial-gradient(circle, rgba(22,163,74,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, backgroundImage: isDark ? "radial-gradient(circle at center, rgba(157,200,255,0.06) 1px, transparent 1.2px)" : "radial-gradient(circle at center, rgba(15,23,42,0.04) 1px, transparent 1.2px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
 
       <div style={{ maxWidth: 860, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
         <motion.div
@@ -610,37 +608,37 @@ function CategoryCarousel({
 }
 const JOBS = [
   // Engineering
-  { id: 1, category: "Engineering", title: "Senior Frontend Engineer", company: "Vercel", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,49,40,000 / yr", posted: "2h ago", logo: "VR", logoColor: "#fff", logoBg: "#000", tags: ["React", "TypeScript", "Next.js"], featured: true },
-  { id: 4, category: "Engineering", title: "DevOps Engineer", company: "PlanetScale", location: "Remote", type: "Full-time", salary: "₹1,07,90,000 – ₹1,41,10,000 / yr", posted: "2d ago", logo: "PS", logoColor: "#fff", logoBg: "#f97316", tags: ["Kubernetes", "AWS", "Terraform"], featured: false },
-  { id: 5, category: "Engineering", title: "Backend Engineer (Go)", company: "Supabase", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,32,80,000 / yr", posted: "3d ago", logo: "SB", logoColor: "#fff", logoBg: "#3ecf8e", tags: ["Go", "PostgreSQL", "Docker"], featured: false },
-  { id: 21, category: "Engineering", title: "iOS Engineer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹1,32,80,000 – ₹1,74,30,000 / yr", posted: "1d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["Swift", "UIKit", "Combine"], featured: false },
+  { id: 1, category: "Engineering", title: "Senior Frontend Engineer", company: "Vercel", location: "Remote", type: "Full-time", salary: "₹24L – ₹36L / yr", salaryMin: 2400000, salaryMax: 3600000, posted: "2h ago", logo: "VR", logoColor: "#fff", logoBg: "#000", tags: ["React", "TypeScript", "Next.js"], featured: true },
+  { id: 4, category: "Engineering", title: "DevOps Engineer", company: "PlanetScale", location: "Remote", type: "Full-time", salary: "₹20L – ₹32L / yr", salaryMin: 2000000, salaryMax: 3200000, posted: "2d ago", logo: "PS", logoColor: "#fff", logoBg: "#f97316", tags: ["Kubernetes", "AWS", "Terraform"], featured: false },
+  { id: 5, category: "Engineering", title: "Backend Engineer (Go)", company: "Supabase", location: "Remote", type: "Full-time", salary: "₹18L – ₹30L / yr", salaryMin: 1800000, salaryMax: 3000000, posted: "3d ago", logo: "SB", logoColor: "#fff", logoBg: "#3ecf8e", tags: ["Go", "PostgreSQL", "Docker"], featured: false },
+  { id: 21, category: "Engineering", title: "iOS Engineer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹22L – ₹35L / yr", salaryMin: 2200000, salaryMax: 3500000, posted: "1d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["Swift", "UIKit", "Combine"], featured: false },
   // Design
-  { id: 2, category: "Design", title: "Product Designer", company: "Linear", location: "San Francisco, CA", type: "Full-time", salary: "₹99,60,000 – ₹1,28,65,000 / yr", posted: "5h ago", logo: "LN", logoColor: "#fff", logoBg: "#5b6af7", tags: ["Figma", "Systems Design", "Motion"], featured: false },
-  { id: 7, category: "Design", title: "UI/UX Designer", company: "Notion", location: "Remote", type: "Full-time", salary: "₹91,30,000 – ₹1,16,20,000 / yr", posted: "4h ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Figma", "Prototyping", "User Research"], featured: false },
-  { id: 8, category: "Design", title: "Brand Designer", company: "Spotify", location: "New York, NY", type: "Full-time", salary: "₹87,15,000 – ₹1,12,05,000 / yr", posted: "1d ago", logo: "SP", logoColor: "#fff", logoBg: "#1DB954", tags: ["Illustrator", "Brand Identity", "Motion"], featured: false },
-  { id: 9, category: "Design", title: "Motion Designer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹95,45,000 – ₹1,24,50,000 / yr", posted: "2d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["After Effects", "Lottie", "Framer"], featured: false },
-  { id: 10, category: "Design", title: "Design Systems Lead", company: "Shopify", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,45,25,000 / yr", posted: "3d ago", logo: "SH", logoColor: "#fff", logoBg: "#5a8a00", tags: ["Figma", "React", "Storybook"], featured: false },
-  { id: 22, category: "Design", title: "Visual Designer", company: "Figma", location: "San Francisco, CA", type: "Full-time", salary: "₹1,03,75,000 – ₹1,32,80,000 / yr", posted: "6h ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["Figma", "Illustration", "Brand"], featured: false },
+  { id: 2, category: "Design", title: "Product Designer", company: "Linear", location: "San Francisco, CA", type: "Full-time", salary: "₹16L – ₹28L / yr", salaryMin: 1600000, salaryMax: 2800000, posted: "5h ago", logo: "LN", logoColor: "#fff", logoBg: "#5b6af7", tags: ["Figma", "Systems Design", "Motion"], featured: false },
+  { id: 7, category: "Design", title: "UI/UX Designer", company: "Notion", location: "Remote", type: "Full-time", salary: "₹12L – ₹22L / yr", salaryMin: 1200000, salaryMax: 2200000, posted: "4h ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Figma", "Prototyping", "User Research"], featured: false },
+  { id: 8, category: "Design", title: "Brand Designer", company: "Spotify", location: "New York, NY", type: "Full-time", salary: "₹10L – ₹18L / yr", salaryMin: 1000000, salaryMax: 1800000, posted: "1d ago", logo: "SP", logoColor: "#fff", logoBg: "#1DB954", tags: ["Illustrator", "Brand Identity", "Motion"], featured: false },
+  { id: 9, category: "Design", title: "Motion Designer", company: "Airbnb", location: "San Francisco, CA", type: "Hybrid", salary: "₹14L – ₹24L / yr", salaryMin: 1400000, salaryMax: 2400000, posted: "2d ago", logo: "AB", logoColor: "#fff", logoBg: "#FF5A5F", tags: ["After Effects", "Lottie", "Framer"], featured: false },
+  { id: 10, category: "Design", title: "Design Systems Lead", company: "Shopify", location: "Remote", type: "Full-time", salary: "₹25L – ₹40L / yr", salaryMin: 2500000, salaryMax: 4000000, posted: "3d ago", logo: "SH", logoColor: "#fff", logoBg: "#5a8a00", tags: ["Figma", "React", "Storybook"], featured: false },
+  { id: 22, category: "Design", title: "Visual Designer", company: "Figma", location: "San Francisco, CA", type: "Full-time", salary: "₹12L – ₹20L / yr", salaryMin: 1200000, salaryMax: 2000000, posted: "6h ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["Figma", "Illustration", "Brand"], featured: false },
   // Finance
-  { id: 3, category: "Finance", title: "Data Scientist", company: "Stripe", location: "New York, NY", type: "Hybrid", salary: "₹1,24,50,000 – ₹1,66,00,000 / yr", posted: "1d ago", logo: "ST", logoColor: "#fff", logoBg: "#635bff", tags: ["Python", "ML", "SQL"], featured: false },
-  { id: 11, category: "Finance", title: "Financial Analyst", company: "Coinbase", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,32,80,000 / yr", posted: "1d ago", logo: "CB", logoColor: "#fff", logoBg: "#0052FF", tags: ["Excel", "SQL", "Financial Modeling"], featured: false },
-  { id: 12, category: "Finance", title: "Risk Manager", company: "Robinhood", location: "Menlo Park, CA", type: "Hybrid", salary: "₹1,07,90,000 – ₹1,41,10,000 / yr", posted: "4d ago", logo: "RH", logoColor: "#fff", logoBg: "#00C805", tags: ["Risk Analysis", "Python", "Bloomberg"], featured: false },
+  { id: 3, category: "Finance", title: "Data Scientist", company: "Stripe", location: "New York, NY", type: "Hybrid", salary: "₹20L – ₹35L / yr", salaryMin: 2000000, salaryMax: 3500000, posted: "1d ago", logo: "ST", logoColor: "#fff", logoBg: "#635bff", tags: ["Python", "ML", "SQL"], featured: false },
+  { id: 11, category: "Finance", title: "Financial Analyst", company: "Coinbase", location: "Remote", type: "Full-time", salary: "₹12L – ₹22L / yr", salaryMin: 1200000, salaryMax: 2200000, posted: "1d ago", logo: "CB", logoColor: "#fff", logoBg: "#0052FF", tags: ["Excel", "SQL", "Financial Modeling"], featured: false },
+  { id: 12, category: "Finance", title: "Risk Manager", company: "Robinhood", location: "Menlo Park, CA", type: "Hybrid", salary: "₹18L – ₹30L / yr", salaryMin: 1800000, salaryMax: 3000000, posted: "4d ago", logo: "RH", logoColor: "#fff", logoBg: "#00C805", tags: ["Risk Analysis", "Python", "Bloomberg"], featured: false },
   // Marketing
-  { id: 6, category: "Marketing", title: "Growth Marketing Lead", company: "Figma", location: "Austin, TX", type: "Hybrid", salary: "₹91,30,000 – ₹1,20,35,000 / yr", posted: "3d ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["SEO", "Analytics", "Paid Ads"], featured: false },
-  { id: 13, category: "Marketing", title: "Content Strategist", company: "HubSpot", location: "Remote", type: "Full-time", salary: "₹74,70,000 – ₹99,60,000 / yr", posted: "2d ago", logo: "HS", logoColor: "#fff", logoBg: "#FF7A59", tags: ["Content", "SEO", "HubSpot CMS"], featured: false },
-  { id: 23, category: "Marketing", title: "Performance Marketing Manager", company: "Notion", location: "Remote", type: "Full-time", salary: "₹83,00,000 – ₹1,12,05,000 / yr", posted: "5d ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Google Ads", "Meta", "A/B Testing"], featured: false },
+  { id: 6, category: "Marketing", title: "Growth Marketing Lead", company: "Figma", location: "Austin, TX", type: "Hybrid", salary: "₹18L – ₹28L / yr", salaryMin: 1800000, salaryMax: 2800000, posted: "3d ago", logo: "FG", logoColor: "#fff", logoBg: "#a259ff", tags: ["SEO", "Analytics", "Paid Ads"], featured: false },
+  { id: 13, category: "Marketing", title: "Content Strategist", company: "HubSpot", location: "Remote", type: "Full-time", salary: "₹8L – ₹15L / yr", salaryMin: 800000, salaryMax: 1500000, posted: "2d ago", logo: "HS", logoColor: "#fff", logoBg: "#FF7A59", tags: ["Content", "SEO", "HubSpot CMS"], featured: false },
+  { id: 23, category: "Marketing", title: "Performance Marketing Manager", company: "Notion", location: "Remote", type: "Full-time", salary: "₹12L – ₹20L / yr", salaryMin: 1200000, salaryMax: 2000000, posted: "5d ago", logo: "NT", logoColor: "#fff", logoBg: "#191919", tags: ["Google Ads", "Meta", "A/B Testing"], featured: false },
   // Healthcare
-  { id: 14, category: "Healthcare", title: "Health Data Analyst", company: "Epic", location: "Madison, WI", type: "Full-time", salary: "₹78,85,000 – ₹1,07,90,000 / yr", posted: "1d ago", logo: "EP", logoColor: "#fff", logoBg: "#c0392b", tags: ["HL7", "SQL", "Tableau"], featured: false },
-  { id: 15, category: "Healthcare", title: "Clinical Software Engineer", company: "Nuna", location: "Remote", type: "Full-time", salary: "₹1,07,90,000 – ₹1,36,95,000 / yr", posted: "3d ago", logo: "NU", logoColor: "#fff", logoBg: "#2980b9", tags: ["Python", "FHIR", "Healthcare APIs"], featured: false },
+  { id: 14, category: "Healthcare", title: "Health Data Analyst", company: "Epic", location: "Madison, WI", type: "Full-time", salary: "₹10L – ₹18L / yr", salaryMin: 1000000, salaryMax: 1800000, posted: "1d ago", logo: "EP", logoColor: "#fff", logoBg: "#c0392b", tags: ["HL7", "SQL", "Tableau"], featured: false },
+  { id: 15, category: "Healthcare", title: "Clinical Software Engineer", company: "Nuna", location: "Remote", type: "Full-time", salary: "₹16L – ₹28L / yr", salaryMin: 1600000, salaryMax: 2800000, posted: "3d ago", logo: "NU", logoColor: "#fff", logoBg: "#2980b9", tags: ["Python", "FHIR", "Healthcare APIs"], featured: false },
   // Security
-  { id: 16, category: "Security", title: "Security Engineer", company: "Cloudflare", location: "Remote", type: "Full-time", salary: "₹1,16,20,000 – ₹1,49,40,000 / yr", posted: "2d ago", logo: "CF", logoColor: "#fff", logoBg: "#F6821F", tags: ["Network Security", "Rust", "Zero Trust"], featured: false },
-  { id: 17, category: "Security", title: "Penetration Tester", company: "HackerOne", location: "Remote", type: "Contract", salary: "₹99,60,000 – ₹1,28,65,000 / yr", posted: "5d ago", logo: "H1", logoColor: "#fff", logoBg: "#494368", tags: ["Bug Bounty", "OWASP", "Metasploit"], featured: false },
+  { id: 16, category: "Security", title: "Security Engineer", company: "Cloudflare", location: "Remote", type: "Full-time", salary: "₹22L – ₹38L / yr", salaryMin: 2200000, salaryMax: 3800000, posted: "2d ago", logo: "CF", logoColor: "#fff", logoBg: "#F6821F", tags: ["Network Security", "Rust", "Zero Trust"], featured: false },
+  { id: 17, category: "Security", title: "Penetration Tester", company: "HackerOne", location: "Remote", type: "Contract", salary: "₹15L – ₹26L / yr", salaryMin: 1500000, salaryMax: 2600000, posted: "5d ago", logo: "H1", logoColor: "#fff", logoBg: "#494368", tags: ["Bug Bounty", "OWASP", "Metasploit"], featured: false },
   // Education
-  { id: 18, category: "Education", title: "EdTech Product Manager", company: "Coursera", location: "Remote", type: "Full-time", salary: "₹99,60,000 – ₹1,24,50,000 / yr", posted: "6d ago", logo: "CO", logoColor: "#fff", logoBg: "#0056D2", tags: ["Product", "EdTech", "Analytics"], featured: false },
-  { id: 24, category: "Education", title: "Curriculum Designer", company: "Khan Academy", location: "Remote", type: "Full-time", salary: "₹70,55,000 – ₹91,30,000 / yr", posted: "4d ago", logo: "KA", logoColor: "#fff", logoBg: "#14BF96", tags: ["Instructional Design", "SCORM", "LMS"], featured: false },
+  { id: 18, category: "Education", title: "EdTech Product Manager", company: "Coursera", location: "Remote", type: "Full-time", salary: "₹18L – ₹32L / yr", salaryMin: 1800000, salaryMax: 3200000, posted: "6d ago", logo: "CO", logoColor: "#fff", logoBg: "#0056D2", tags: ["Product", "EdTech", "Analytics"], featured: false },
+  { id: 24, category: "Education", title: "Curriculum Designer", company: "Khan Academy", location: "Remote", type: "Full-time", salary: "₹8L – ₹15L / yr", salaryMin: 800000, salaryMax: 1500000, posted: "4d ago", logo: "KA", logoColor: "#fff", logoBg: "#14BF96", tags: ["Instructional Design", "SCORM", "LMS"], featured: false },
   // Engineering Ops
-  { id: 19, category: "Engineering Ops", title: "Site Reliability Engineer", company: "Netflix", location: "Remote", type: "Full-time", salary: "₹1,49,40,000 – ₹1,90,90,000 / yr", posted: "1d ago", logo: "NF", logoColor: "#fff", logoBg: "#E50914", tags: ["Chaos Engineering", "AWS", "Python"], featured: false },
-  { id: 20, category: "Engineering Ops", title: "Platform Engineer", company: "Datadog", location: "New York, NY", type: "Hybrid", salary: "₹1,24,50,000 – ₹1,61,85,000 / yr", posted: "4d ago", logo: "DD", logoColor: "#fff", logoBg: "#632CA6", tags: ["Kubernetes", "Terraform", "Go"], featured: false }
+  { id: 19, category: "Engineering Ops", title: "Site Reliability Engineer", company: "Netflix", location: "Remote", type: "Full-time", salary: "₹28L – ₹45L / yr", salaryMin: 2800000, salaryMax: 4500000, posted: "1d ago", logo: "NF", logoColor: "#fff", logoBg: "#E50914", tags: ["Chaos Engineering", "AWS", "Python"], featured: false },
+  { id: 20, category: "Engineering Ops", title: "Platform Engineer", company: "Datadog", location: "New York, NY", type: "Hybrid", salary: "₹24L – ₹38L / yr", salaryMin: 2400000, salaryMax: 3800000, posted: "4d ago", logo: "DD", logoColor: "#fff", logoBg: "#632CA6", tags: ["Kubernetes", "Terraform", "Go"], featured: false }
 ];
 const TYPE_COLORS = {
   "Full-time": [T.greenDim, T.green],
@@ -694,7 +692,7 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
       {/* Metadata: Location, Salary, Time */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, minHeight: 22, alignItems: "center" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><MapPin size={12} />{job.location}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><IndianRupee size={12} />{formattedSalary}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Banknote size={12} />{formattedSalary}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Clock size={12} />{relativeTime}</span>
       </div>
 
@@ -981,16 +979,16 @@ function CompaniesSection() {
     </section>;
 }
 const SALARY_ROWS = [
-  { role: "Senior Frontend Engineer", category: "Engineering", entry: "₹70,55,000", mid: "₹1,07,90,000", senior: "₹1,41,10,000", lead: "₹1,74,30,000", trend: "+8.2%" },
-  { role: "Product Designer", category: "Design", entry: "₹62,25,000", mid: "₹91,30,000", senior: "₹1,24,50,000", lead: "₹1,57,70,000", trend: "+6.5%" },
-  { role: "Data Scientist", category: "Finance", entry: "₹74,70,000", mid: "₹1,12,05,000", senior: "₹1,49,40,000", lead: "₹1,86,75,000", trend: "+11.3%" },
-  { role: "DevOps / SRE", category: "Engineering Ops", entry: "₹78,85,000", mid: "₹1,16,20,000", senior: "₹1,53,55,000", lead: "₹1,95,05,000", trend: "+9.7%" },
-  { role: "Security Engineer", category: "Security", entry: "₹83,00,000", mid: "₹1,20,35,000", senior: "₹1,57,70,000", lead: "₹1,99,20,000", trend: "+13.1%" },
-  { role: "Marketing Manager", category: "Marketing", entry: "₹49,80,000", mid: "₹74,70,000", senior: "₹1,03,75,000", lead: "₹1,36,95,000", trend: "+4.2%" },
-  { role: "UX Researcher", category: "Design", entry: "₹59,76,000", mid: "₹87,15,000", senior: "₹1,16,20,000", lead: "₹1,47,74,000", trend: "+5.8%" },
-  { role: "Clinical Software Engineer", category: "Healthcare", entry: "₹74,70,000", mid: "₹1,07,90,000", senior: "₹1,41,10,000", lead: "₹1,74,30,000", trend: "+7.4%" },
-  { role: "Backend Engineer (Go)", category: "Engineering", entry: "₹73,04,000", mid: "₹1,03,75,000", senior: "₹1,36,95,000", lead: "₹1,70,15,000", trend: "+8.9%" },
-  { role: "EdTech Product Manager", category: "Education", entry: "₹66,40,000", mid: "₹95,45,000", senior: "₹1,22,84,000", lead: "₹1,49,40,000", trend: "+3.6%" }
+  { role: "Senior Frontend Engineer", category: "Engineering", entry: "₹6L", mid: "₹14L", senior: "₹26L", lead: "₹42L", trend: "+8.2%", seniorNum: 2600000 },
+  { role: "Product Designer", category: "Design", entry: "₹5.5L", mid: "₹12L", senior: "₹22L", lead: "₹35L", trend: "+6.5%", seniorNum: 2200000 },
+  { role: "Data Scientist", category: "Finance", entry: "₹7L", mid: "₹16L", senior: "₹28L", lead: "₹45L", trend: "+11.3%", seniorNum: 2800000 },
+  { role: "DevOps / SRE", category: "Engineering Ops", entry: "₹6.5L", mid: "₹15L", senior: "₹27L", lead: "₹44L", trend: "+9.7%", seniorNum: 2700000 },
+  { role: "Security Engineer", category: "Security", entry: "₹7.5L", mid: "₹18L", senior: "₹30L", lead: "₹48L", trend: "+13.1%", seniorNum: 3000000 },
+  { role: "Marketing Manager", category: "Marketing", entry: "₹4.5L", mid: "₹9.5L", senior: "₹18L", lead: "₹28L", trend: "+4.2%", seniorNum: 1800000 },
+  { role: "UX Researcher", category: "Design", entry: "₹5L", mid: "₹11L", senior: "₹20L", lead: "₹32L", trend: "+5.8%", seniorNum: 2000000 },
+  { role: "Clinical Software Engineer", category: "Healthcare", entry: "₹6.5L", mid: "₹14L", senior: "₹25L", lead: "₹40L", trend: "+7.4%", seniorNum: 2500000 },
+  { role: "Backend Engineer (Go)", category: "Engineering", entry: "₹7L", mid: "₹16L", senior: "₹28L", lead: "₹46L", trend: "+8.9%", seniorNum: 2800000 },
+  { role: "EdTech Product Manager", category: "Education", entry: "₹6L", mid: "₹13L", senior: "₹24L", lead: "₹38L", trend: "+3.6%", seniorNum: 2400000 }
 ];
 const CAT_COLORS = {
   Engineering: T.purple,
@@ -1008,7 +1006,7 @@ function SalariesSection() {
   const cats = ["All", "Engineering", "Design", "Finance", "Marketing", "Healthcare", "Security"];
   const sorted = [...SALARY_ROWS].filter((r) => filterCat === "All" || r.category === filterCat).sort((a, b) => {
     if (sortBy === "role") return a.role.localeCompare(b.role);
-    if (sortBy === "senior") return parseInt(b.senior.replace(/\D/g, "")) - parseInt(a.senior.replace(/\D/g, ""));
+    if (sortBy === "senior") return (b.seniorNum || getJobNumericSalary(b.senior)) - (a.seniorNum || getJobNumericSalary(a.senior));
     return parseFloat(b.trend) - parseFloat(a.trend);
   });
   return <section style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 32px 80px", fontFamily: T.font }}>
@@ -1023,9 +1021,9 @@ function SalariesSection() {
   }
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 32 }}>
         {[
-    { label: "Avg. Senior Engineer", value: "₹1,42,76,000", delta: "+8.9% YoY", color: T.purple },
-    { label: "Avg. Senior Designer", value: "₹1,20,35,000", delta: "+6.5% YoY", color: "#f472b6" },
-    { label: "Avg. Data Scientist", value: "₹1,49,40,000", delta: "+11.3% YoY", color: T.green },
+    { label: "Avg. Senior Engineer", value: "₹26.5L", delta: "+8.9% YoY", color: T.purple },
+    { label: "Avg. Senior Designer", value: "₹22L", delta: "+6.5% YoY", color: "#f472b6" },
+    { label: "Avg. Data Scientist", value: "₹28L", delta: "+11.3% YoY", color: T.green },
     { label: "Highest Growth Role", value: "Security Eng.", delta: "+13.1% YoY", color: T.yellow }
   ].map((stat) => <GlassCard key={stat.label} hover={false} style={{ padding: "18px 20px" }}>
             <div style={{ fontSize: "0.68rem", color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{stat.label}</div>
@@ -1118,6 +1116,7 @@ function FooterStrip({ onSectionChange }) {
     </div>;
 }
 export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJob }) {
+  const { isDark } = useTheme();
   const [section, setSection] = useState("find-jobs");
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -1195,8 +1194,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    transition={{ duration: 0.2 }}
-    style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+    style={{ position: "fixed", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
     onClick={() => {
       setSelectedJob(null);
       setJobDetails(null);
@@ -1206,7 +1204,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
     initial={{ scale: 0.95, y: 20 }}
     animate={{ scale: 1, y: 0 }}
     exit={{ scale: 0.95, y: 20 }}
-    style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 16, padding: 32, width: "100%", maxWidth: 600, maxHeight: "85vh", overflowY: "auto" }}
+    style={{ background: isDark ? T.bg : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 16, padding: 32, width: "100%", maxWidth: 600, maxHeight: "85vh", overflowY: "auto", boxShadow: isDark ? "none" : "0 20px 50px rgba(0,0,0,0.15)" }}
     onClick={(e) => e.stopPropagation()}
   >
               {loadingDetails ? <div style={{ textAlign: "center", color: T.textMid, padding: 40 }}>Loading job details...</div> : jobDetails ? <>

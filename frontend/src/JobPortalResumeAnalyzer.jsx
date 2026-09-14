@@ -4,23 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileText, CheckCircle2, Zap, AlertTriangle, Search } from "lucide-react";
 import { Button, GlassCard } from "./JobPortal";
 import API from "./services/api";
-const T = {
-  bg: "#09090f",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceHov: "rgba(255,255,255,0.07)",
-  border: "rgba(255,255,255,0.08)",
-  purple: "#7c6af7",
-  purpleDim: "rgba(124,106,247,0.15)",
-  green: "#4ade80",
-  greenDim: "rgba(74,222,128,0.12)",
-  red: "#ef4444",
-  text: "#f0f0fa",
-  textMid: "#9090b8",
-  textDim: "#5a5a80",
-  font: "'DM Sans', sans-serif",
-  serif: "'DM Serif Display', serif"
-};
+import { useTheme, T } from "./context/ThemeContext";
+
 export function ResumeAnalyzerView() {
+  const { isDark } = useTheme();
   const [file, setFile] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
@@ -101,7 +88,7 @@ export function ResumeAnalyzerView() {
     accept=".pdf,.doc,.docx"
     style={{ display: "none" }}
   />
-          {file && <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(0,0,0,0.4)", padding: "12px 24px", borderRadius: 12, marginBottom: 24 }}>
+          {file && <div style={{ display: "flex", alignItems: "center", gap: 12, background: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.06)", padding: "12px 24px", borderRadius: 12, marginBottom: 24 }}>
               <FileText size={20} color={T.green} />
               <span style={{ color: T.text }}>{file.name}</span>
             </div>}
@@ -130,7 +117,7 @@ export function ResumeAnalyzerView() {
           <motion.div
     animate={{ rotate: 360 }}
     transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-    style={{ width: 64, height: 64, borderRadius: "50%", border: `4px solid ${T.surface}`, borderTopColor: T.purple, marginBottom: 24 }}
+    style={{ width: 64, height: 64, borderRadius: "50%", border: `4px solid ${isDark ? T.surface : "#e2e8f0"}`, borderTopColor: T.purple, marginBottom: 24 }}
   />
           <h3 style={{ fontSize: "1.5rem", color: T.text, margin: "0 0 12px" }}>Our AI is analyzing your resume...</h3>
           <p style={{ color: T.textMid }}>Checking formatting, keywords, and ATS compatibility.</p>
@@ -147,7 +134,7 @@ export function ResumeAnalyzerView() {
                 <div style={{ fontSize: "1.1rem", color: T.textMid, marginBottom: 16 }}>Overall Score</div>
                 <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
-                    <circle cx="70" cy="70" r="60" fill="none" stroke={T.surface} strokeWidth="12" />
+                    <circle cx="70" cy="70" r="60" fill="none" stroke={isDark ? T.surface : "#e2e8f0"} strokeWidth="12" />
                     <motion.circle
     cx="70"
     cy="70"

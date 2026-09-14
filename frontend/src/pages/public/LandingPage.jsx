@@ -184,7 +184,7 @@ export const LandingPage = () => {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-white">Full Stack MERN Developer</h4>
-                    <p className="text-xs text-slate-400">Nexus Technologies • Bengaluru (Hybrid) • ₹14 LPA</p>
+                    <p className="text-xs text-slate-400">Nexus Technologies • Bengaluru (Hybrid) • ₹8L - ₹14L / yr</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">

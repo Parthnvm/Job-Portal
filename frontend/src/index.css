@@ -3,23 +3,66 @@
 
 /* stylelint-disable-next-line at-rule-no-unknown */
 @theme {
-  --color-background: #09090f;
-  --color-foreground: #e8e8f0;
-  --color-card: #111120;
-  --color-card-foreground: #e8e8f0;
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
   --color-primary: #7c6af7;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #1a1a2e;
-  --color-secondary-foreground: #a0a0c0;
-  --color-muted: #1e1e30;
-  --color-muted-foreground: #6b6b90;
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
   --color-accent: #4ade80;
   --color-accent-foreground: #0a0a0f;
-  --color-border: rgba(255,255,255,0.08);
+  --color-border: var(--color-border);
   --color-ring: #7c6af7;
   --radius: 0.75rem;
   --font-sans: 'DM Sans', sans-serif;
   --font-serif: 'DM Serif Display', serif;
+}
+
+:root,
+html.dark,
+[data-theme="dark"] {
+  --color-background: #09090f;
+  --color-foreground: #e8e8f0;
+  --color-card: #111120;
+  --color-card-foreground: #e8e8f0;
+  --color-secondary: #1a1a2e;
+  --color-secondary-foreground: #a0a0c0;
+  --color-muted: #1e1e30;
+  --color-muted-foreground: #6b6b90;
+  --color-border: rgba(255,255,255,0.08);
+  --app-bg: #09090f;
+  --app-surface: rgba(255,255,255,0.04);
+  --app-surface-hov: rgba(255,255,255,0.07);
+  --app-border: rgba(255,255,255,0.08);
+  --app-text: #f0f0fa;
+  --app-text-mid: #9090b8;
+  --app-text-dim: #5a5a80;
+  --app-card-shadow: none;
+}
+
+html.light,
+[data-theme="light"] {
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #475569;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-hov: #f1f5f9;
+  --app-border: #e2e8f0;
+  --app-text: #0f172a;
+  --app-text-mid: #475569;
+  --app-text-dim: #64748b;
+  --app-card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
 * {
@@ -38,6 +81,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.15s ease;
 }
 
 input:-webkit-autofill,
@@ -46,6 +90,26 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 100px #1a1a2e inset;
   -webkit-text-fill-color: #e8e8f0;
   caret-color: #e8e8f0;
+}
+
+html.light input:-webkit-autofill,
+html.light input:-webkit-autofill:hover,
+html.light input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px #ffffff inset;
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+}
+
+html.light .glass-card-hover:hover {
+  background: #ffffff !important;
+  border-color: rgba(109, 90, 230, 0.35) !important;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Disable spinner arrows on input type=number */

@@ -26,25 +26,8 @@ import {
 import { Button, Input } from "./JobPortal";
 import { useGoogleLogin } from "@react-oauth/google";
 import API from "./services/api";
-const T = {
-  bg: "#09090f",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceHov: "rgba(255,255,255,0.07)",
-  border: "rgba(255,255,255,0.08)",
-  purple: "#7c6af7",
-  purpleL: "#a090ff",
-  purpleDim: "rgba(124,106,247,0.15)",
-  green: "#4ade80",
-  greenDim: "rgba(74,222,128,0.12)",
-  pink: "#f472b6",
-  orange: "#fb923c",
-  yellow: "#facc15",
-  text: "#f0f0fa",
-  textMid: "#9090b8",
-  textDim: "#5a5a80",
-  font: "'DM Sans', sans-serif",
-  serif: "'DM Serif Display', serif"
-};
+import { useTheme, ThemeToggle, T } from "./context/ThemeContext";
+
 function Field({ label, children, hint }) {
   return <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={{ fontSize: "0.8rem", fontWeight: 500, color: T.textMid, fontFamily: T.font }}>{label}</label>
@@ -52,6 +35,7 @@ function Field({ label, children, hint }) {
       {hint && <span style={{ fontSize: "0.7rem", color: T.textDim }}>{hint}</span>}
     </div>;
 }
+
 function PasswordInput({ placeholder, value, onChange }) {
   const [show, setShow] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -79,6 +63,7 @@ function PasswordInput({ placeholder, value, onChange }) {
       </button>
     </div>;
 }
+
 const ROLES = [
   {
     id: "student",
@@ -101,7 +86,9 @@ const ROLES = [
     gradient: "linear-gradient(135deg, rgba(74,222,128,0.2), rgba(124,106,247,0.08))"
   }
 ];
+
 function RolePicker({ selected, onChange, onContinue }) {
+  const { isDark } = useTheme();
   return <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: "0.72rem", color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Step 1 of 2</div>
@@ -120,7 +107,7 @@ function RolePicker({ selected, onChange, onContinue }) {
       style={{
         width: "100%",
         textAlign: "left",
-        background: active ? r.gradient : T.surface,
+        background: active ? r.gradient : (isDark ? T.surface : "#ffffff"),
         border: `1.5px solid ${active ? r.accent + "60" : T.border}`,
         borderRadius: 14,
         padding: "20px 22px",
@@ -128,14 +115,15 @@ function RolePicker({ selected, onChange, onContinue }) {
         transition: "all 0.22s",
         position: "relative",
         overflow: "hidden",
-        fontFamily: T.font
+        fontFamily: T.font,
+        boxShadow: isDark ? "none" : (active ? "0 4px 14px rgba(124,106,247,0.12)" : "0 1px 4px rgba(0,0,0,0.06)")
       }}
     >
               {active && <div style={{ position: "absolute", top: 14, right: 14, color: r.accent }}>
                   <CheckCircle2 size={18} fill={r.accent + "33"} />
                 </div>}
               <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 14, background: active ? r.accentDim : "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", color: active ? r.accent : T.textDim, flexShrink: 0, transition: "all 0.22s" }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: active ? r.accentDim : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"), display: "flex", alignItems: "center", justifyContent: "center", color: active ? r.accent : T.textDim, flexShrink: 0, transition: "all 0.22s" }}>
                   {r.icon}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -460,25 +448,26 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
     </motion.div>;
 }
 function StudentPreviewPanel() {
+  const { isDark } = useTheme();
   const jobs = [
-    { title: "Senior Frontend Engineer", co: "Vercel", loc: "Remote", sal: "₹1,16,20,000 – ₹1,49,40,000", logo: "VR", bg: "#000", tag: "Full-time", match: 98 },
-    { title: "Product Designer", co: "Linear", loc: "San Francisco", sal: "₹99,60,000 – ₹1,28,65,000", logo: "LN", bg: "#5b6af7", tag: "Hybrid", match: 91 },
-    { title: "Data Scientist", co: "Stripe", loc: "New York", sal: "₹1,24,50,000 – ₹1,66,00,000", logo: "ST", bg: "#635bff", tag: "Full-time", match: 85 }
+    { title: "Senior Frontend Engineer", co: "Vercel", loc: "Remote", sal: "₹24L – ₹36L", logo: "VR", bg: "#000", tag: "Full-time", match: 98 },
+    { title: "Product Designer", co: "Linear", loc: "Bengaluru", sal: "₹18L – ₹28L", logo: "LN", bg: "#5b6af7", tag: "Hybrid", match: 91 },
+    { title: "Data Scientist", co: "Stripe", loc: "Bengaluru", sal: "₹22L – ₹34L", logo: "ST", bg: "#635bff", tag: "Full-time", match: 85 }
   ];
   return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {
     /* Profile completion */
   }
-      <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)", border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: "0.75rem", fontWeight: 600, color: T.text }}>Profile Strength</span>
           <span style={{ fontSize: "0.75rem", color: T.green, fontWeight: 600 }}>72%</span>
         </div>
-        <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ height: 5, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
           <div style={{ height: "100%", width: "72%", background: `linear-gradient(90deg, ${T.purple}, ${T.green})`, borderRadius: 4 }} />
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["\u2713 Resume", "\u2713 Skills", "+ Portfolio", "+ References"].map((t) => <span key={t} style={{ fontSize: "0.65rem", padding: "2px 8px", background: t.startsWith("\u2713") ? T.greenDim : "rgba(255,255,255,0.05)", color: t.startsWith("\u2713") ? T.green : T.textDim, borderRadius: 20, fontWeight: 500 }}>{t}</span>)}
+          {["\u2713 Resume", "\u2713 Skills", "+ Portfolio", "+ References"].map((t) => <span key={t} style={{ fontSize: "0.65rem", padding: "2px 8px", background: t.startsWith("\u2713") ? T.greenDim : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"), color: t.startsWith("\u2713") ? T.green : T.textDim, borderRadius: 20, fontWeight: 500 }}>{t}</span>)}
         </div>
       </div>
 
@@ -488,7 +477,7 @@ function StudentPreviewPanel() {
       <div style={{ fontSize: "0.7rem", color: T.textDim, display: "flex", alignItems: "center", gap: 5 }}>
         <Star size={11} color={T.yellow} fill={T.yellow} /> AI-matched jobs for you
       </div>
-      {jobs.map((j) => <div key={j.title} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+      {jobs.map((j) => <div key={j.title} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 11, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ width: 34, height: 34, borderRadius: 9, background: j.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>{j.logo}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "0.78rem", fontWeight: 600, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{j.title}</div>
@@ -504,14 +493,16 @@ function StudentPreviewPanel() {
     /* Stats */
   }
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {[{ v: "12", l: "Applied" }, { v: "4", l: "Interviews" }, { v: "1", l: "Offer" }].map((s) => <div key={s.l} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+        {[{ v: "12", l: "Applied" }, { v: "4", l: "Interviews" }, { v: "1", l: "Offer" }].map((s) => <div key={s.l} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 8px", textAlign: "center", boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.05)" }}>
             <div style={{ fontSize: "1.1rem", fontWeight: 700, color: T.text }}>{s.v}</div>
             <div style={{ fontSize: "0.62rem", color: T.textDim, marginTop: 2 }}>{s.l}</div>
           </div>)}
       </div>
     </div>;
 }
+
 function RecruiterPreviewPanel() {
+  const { isDark } = useTheme();
   const applicants = [
     { name: "Elena Vance", role: "Sr. Frontend Eng", score: 94, status: "Interview", avatar: "EV", avatarBg: T.purple },
     { name: "Marcus Cole", role: "Sr. Frontend Eng", score: 88, status: "Review", avatar: "MC", avatarBg: T.green },
@@ -532,7 +523,7 @@ function RecruiterPreviewPanel() {
     { icon: <Users size={14} />, v: "47", l: "Applicants", color: T.green },
     { icon: <BarChart3 size={14} />, v: "8", l: "Shortlisted", color: T.orange },
     { icon: <TrendingUp size={14} />, v: "1,240", l: "Job Views", color: T.pink }
-  ].map((s) => <div key={s.l} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 9 }}>
+  ].map((s) => <div key={s.l} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 9, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.05)" }}>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: s.color + "20", display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
             <div>
               <div style={{ fontSize: "1rem", fontWeight: 700, color: T.text }}>{s.v}</div>
@@ -547,7 +538,7 @@ function RecruiterPreviewPanel() {
       <div style={{ fontSize: "0.7rem", color: T.textDim }}>Recent Applicants</div>
       {applicants.map((a) => {
     const [sbg, sc] = STATUS_COLOR[a.status];
-    return <div key={a.name} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+    return <div key={a.name} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 11, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.05)" }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: a.avatarBg + "30", border: `1px solid ${a.avatarBg}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 700, color: a.avatarBg, flexShrink: 0 }}>{a.avatar}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "0.78rem", fontWeight: 600, color: T.text }}>{a.name}</div>
@@ -563,25 +554,27 @@ function RecruiterPreviewPanel() {
       {
     /* Active job post */
   }
-      <div style={{ background: "rgba(74,222,128,0.07)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 11, padding: "12px 14px" }}>
+      <div style={{ background: isDark ? "rgba(74,222,128,0.07)" : "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 11, padding: "12px 14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ fontSize: "0.78rem", fontWeight: 600, color: T.text }}>Sr. Frontend Engineer</span>
           <span style={{ fontSize: "0.65rem", color: T.green, fontWeight: 600 }}>● LIVE</span>
         </div>
         <div style={{ display: "flex", gap: 12, fontSize: "0.68rem", color: T.textDim }}>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={10} />Remote</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><IndianRupee size={10} />₹1,16,20,000 – ₹1,49,40,000</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><IndianRupee size={10} />₹1.16Cr – ₹1.49Cr</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={10} />3 days left</span>
         </div>
       </div>
     </div>;
 }
+
 function RightPanel({ role, mode }) {
+  const { isDark } = useTheme();
   const isRecruiter = role === "recruiter";
   const accent = isRecruiter ? T.green : T.purple;
   return <div
     className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center relative overflow-hidden"
-    style={{ background: "linear-gradient(145deg, #0e0e20 0%, #16103a 40%, #0f1f18 100%)", borderLeft: `1px solid ${T.border}` }}
+    style={{ background: isDark ? "linear-gradient(145deg, #0e0e20 0%, #16103a 40%, #0f1f18 100%)" : "linear-gradient(145deg, #f8fafc 0%, #ede9fe 50%, #f0fdf4 100%)", borderLeft: `1px solid ${T.border}` }}
   >
       {
     /* Blobs */
@@ -599,14 +592,14 @@ function RightPanel({ role, mode }) {
     animate={{ opacity: 1, y: 0, scale: 1 }}
     exit={{ opacity: 0, y: -20, scale: 0.97 }}
     transition={{ duration: 0.35 }}
-    style={{ position: "relative", zIndex: 1, width: "88%", maxWidth: 400, background: "rgba(12,10,24,0.82)", border: `1px solid ${T.border}`, borderRadius: 20, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)" }}
+    style={{ position: "relative", zIndex: 1, width: "88%", maxWidth: 400, background: isDark ? "rgba(12,10,24,0.82)" : "#ffffff", border: `1px solid ${T.border}`, borderRadius: 20, overflow: "hidden", boxShadow: isDark ? "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)" : "0 20px 50px rgba(0,0,0,0.1)" }}
   >
           {
     /* Chrome */
   }
-          <div style={{ padding: "11px 16px", background: "rgba(255,255,255,0.03)", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 6 }}>
-            {[0.15, 0.1, 0.07].map((o, i) => <div key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: `rgba(255,255,255,${o})` }} />)}
-            <span style={{ marginLeft: "auto", fontSize: "0.62rem", color: "#3a3a70", letterSpacing: "0.04em" }}>
+          <div style={{ padding: "11px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 6 }}>
+            {[0.15, 0.1, 0.07].map((o, i) => <div key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o * 1.5})` }} />)}
+            <span style={{ marginLeft: "auto", fontSize: "0.62rem", color: isDark ? "#3a3a70" : "#64748b", letterSpacing: "0.04em" }}>
               {role === null ? "JobSphere Platform" : isRecruiter ? "Recruiter Dashboard" : "Candidate Portal"}
             </span>
           </div>
@@ -638,10 +631,10 @@ function RightPanel({ role, mode }) {
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: 0.3 }}
-    style={{ position: "absolute", bottom: 28, zIndex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", background: "rgba(255,255,255,0.05)", border: `1px solid ${T.border}`, borderRadius: 40, backdropFilter: "blur(12px)" }}
+    style={{ position: "absolute", bottom: 28, zIndex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", background: isDark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.9)", border: `1px solid ${T.border}`, borderRadius: 40, backdropFilter: "blur(12px)", boxShadow: isDark ? "none" : "0 4px 14px rgba(0,0,0,0.08)" }}
   >
           <div style={{ display: "flex" }}>
-            {["EV", "MC", "PS", "AR"].map((av, i) => <div key={av} style={{ width: 24, height: 24, borderRadius: "50%", background: [T.purple, T.green, T.pink, T.orange][i] + "90", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", fontWeight: 700, color: "#fff", marginLeft: i > 0 ? -8 : 0, border: "1.5px solid rgba(9,9,15,0.8)" }}>{av}</div>)}
+            {["EV", "MC", "PS", "AR"].map((av, i) => <div key={av} style={{ width: 24, height: 24, borderRadius: "50%", background: [T.purple, T.green, T.pink, T.orange][i] + "90", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", fontWeight: 700, color: "#fff", marginLeft: i > 0 ? -8 : 0, border: `1.5px solid ${isDark ? "rgba(9,9,15,0.8)" : "#ffffff"}` }}>{av}</div>)}
           </div>
           <span style={{ fontSize: "0.72rem", color: T.textMid }}>
             {isRecruiter ? "320+ companies hired this month" : "1,200+ candidates placed this month"}
@@ -649,11 +642,13 @@ function RightPanel({ role, mode }) {
         </motion.div>}
     </div>;
 }
+
 export function JobPortalAuth({
   onSuccess,
   onBack,
   initialMode = "login"
 }) {
+  const { isDark } = useTheme();
   const [role, setRole] = useState(null);
   const [mode, setMode] = useState(initialMode);
   const [step, setStep] = useState(1);
@@ -679,12 +674,15 @@ export function JobPortalAuth({
             </div>
             <span style={{ fontFamily: T.serif, fontSize: "1.1rem", color: T.text }}>JobSphere</span>
           </div>
-          <button
-    onClick={onBack}
-    style={{ display: "flex", alignItems: "center", gap: 5, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", color: T.textDim, fontSize: "0.78rem", cursor: "pointer", fontFamily: T.font }}
-  >
-            <ArrowLeft size={13} /> Back to Jobs
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <ThemeToggle />
+            <button
+              onClick={onBack}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", color: T.textDim, fontSize: "0.78rem", cursor: "pointer", fontFamily: T.font }}
+            >
+              <ArrowLeft size={13} /> Back to Jobs
+            </button>
+          </div>
         </div>
 
         {
@@ -692,7 +690,7 @@ export function JobPortalAuth({
   }
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
           {[1, 2].map((s) => <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: step >= s ? T.purple : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, color: step >= s ? "#fff" : T.textDim, transition: "all 0.3s", flexShrink: 0 }}>{s}</div>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: step >= s ? T.purple : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, color: step >= s ? "#fff" : T.textDim, transition: "all 0.3s", flexShrink: 0 }}>{s}</div>
               <span style={{ fontSize: "0.72rem", color: step === s ? T.purpleL : T.textDim, fontWeight: step === s ? 600 : 400 }}>
                 {s === 1 ? "Choose role" : "Create account"}
               </span>
