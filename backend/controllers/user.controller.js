@@ -3,9 +3,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import axios from "axios";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+import { extractResumeText } from "../utils/resumeExtractor.js";
+import { groqResumeAnalyzer } from "../services/groqService.js";
+import { ResumeAnalysis } from "../models/resumeAnalysis.model.js";
 
 export const register = async (req, res) => {
   try {
@@ -215,81 +215,132 @@ export const analyzeResume = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
-        message: "No file uploaded.",
+        message: "No file uploaded. Please upload a PDF or text resume.",
         success: false,
       });
     }
 
-    const dataBuffer = req.file.buffer;
-    const parsedData = await pdf(dataBuffer);
-    const text = parsedData.text.toLowerCase();
+    const userId = req.id;
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing user authentication.",
+        success: false,
+      });
+    }
 
-    // Target tech keywords
-    const keywordsList = [
-      "react", "typescript", "javascript", "node.js", "express", 
-      "mongodb", "html", "css", "next.js", "nextjs", "aws", "docker", 
-      "kubernetes", "git", "python", "sql", "graphql", "tailwind", 
-      "redux", "figma", "agile", "devops", "ci/cd"
-    ];
+    // Extract, clean, and validate resume text
+    let extracted;
+    try {
+      extracted = await extractResumeText(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+    } catch (extractErr) {
+      return res.status(400).json({
+        message: extractErr.message || "Failed to extract readable text from resume.",
+        success: false,
+      });
+    }
 
-    const found = [];
-    const missing = [];
+    const { text, hash } = extracted;
 
-    keywordsList.forEach((kw) => {
-      const regex = new RegExp(`\\b${kw}\\b`, 'i');
-      if (regex.test(text) || text.includes(kw)) {
-        found.push(kw.charAt(0).toUpperCase() + kw.slice(1));
-      } else {
-        missing.push(kw.charAt(0).toUpperCase() + kw.slice(1));
-      }
+    // Check if an analysis already exists for this exact resume content by this user
+    const existing = await ResumeAnalysis.findOne({
+      userId,
+      resumeHash: hash,
+    }).sort({ createdAt: -1 });
+
+    if (existing) {
+      return res.status(200).json({
+        success: true,
+        cached: true,
+        analysis: existing.analysis,
+        fileName: existing.fileName || req.file.originalname,
+        createdAt: existing.createdAt,
+        message: "Loaded existing analysis for this resume.",
+      });
+    }
+
+    // Ensure Groq is configured
+    if (!groqResumeAnalyzer.isConfigured()) {
+      return res.status(503).json({
+        message: "Groq AI service is not configured. Please set GROQ_API_KEY in the backend environment.",
+        success: false,
+      });
+    }
+
+    // Perform AI analysis via Groq with structured outputs
+    const result = await groqResumeAnalyzer.analyze(text, hash);
+
+    // Save persistent analysis in database
+    const saved = await ResumeAnalysis.create({
+      userId,
+      resumeHash: hash,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      analysis: result.analysis,
+      modelUsed: result.modelUsed,
+      usage: result.usage,
     });
 
-    const totalKeywords = keywordsList.length;
-    const score = Math.round((found.length / totalKeywords) * 100);
-
-    const strengths = [];
-    const weaknesses = [];
-
-    if (found.length > 5) {
-      strengths.push("Excellent technical skill diversity.");
-    } else {
-      weaknesses.push("Add more technical keywords to match standard ATS profiles.");
-    }
-
-    if (text.includes("experience") || text.includes("work") || text.includes("history")) {
-      strengths.push("Clear professional experience section identified.");
-    } else {
-      weaknesses.push("Missing a clear 'Experience' or 'Work History' section.");
-    }
-
-    if (text.includes("education") || text.includes("degree") || text.includes("university") || text.includes("college")) {
-      strengths.push("Educational background clearly specified.");
-    } else {
-      weaknesses.push("Consider highlighting your educational degree or certificates.");
-    }
-
-    if (text.length > 1500) {
-      strengths.push("Comprehensive resume details with sufficient content.");
-    } else {
-      weaknesses.push("Your resume is quite short; consider adding more project details.");
+    // Optionally update user's profile metadata if present
+    try {
+      await User.findByIdAndUpdate(userId, {
+        "profile.resumeOriginalName": req.file.originalname,
+      });
+    } catch (userUpdateErr) {
+      console.warn("Failed to update user resumeOriginalName:", userUpdateErr.message);
     }
 
     return res.status(200).json({
       success: true,
-      analysis: {
-        score,
-        strengths,
-        weaknesses,
-        keywords: {
-          found,
-          missing,
-        }
-      }
+      cached: false,
+      analysis: saved.analysis,
+      fileName: saved.fileName,
+      createdAt: saved.createdAt,
+      message: "Resume analyzed successfully with Groq AI.",
     });
   } catch (error) {
-    console.log(error);
+    console.error("[analyzeResume error]:", error.message);
+    const isRateLimit = error.message && error.message.includes("rate limit");
+    return res.status(isRateLimit ? 429 : 500).json({
+      message: error.message || "Internal server error while analyzing resume.",
+      success: false,
+    });
+  }
+};
+
+export const getLatestResumeAnalysis = async (req, res) => {
+  try {
+    const userId = req.id;
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing user authentication.",
+        success: false,
+      });
+    }
+
+    const latest = await ResumeAnalysis.findOne({ userId }).sort({ createdAt: -1 });
+    if (!latest) {
+      return res.status(200).json({
+        success: true,
+        analysis: null,
+        message: "No prior resume analysis found for this candidate.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      analysis: latest.analysis,
+      fileName: latest.fileName,
+      createdAt: latest.createdAt,
+      message: "Latest analysis retrieved successfully.",
+    });
+  } catch (error) {
+    console.error("[getLatestResumeAnalysis error]:", error.message);
     return res.status(500).json({
-      message: "Internal server error",
+      message: "Internal server error while fetching latest resume analysis.",
       success: false,
     });
   }

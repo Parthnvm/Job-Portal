@@ -18,7 +18,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node test_runner.js",
-    "test:endpoints": "node test_endpoints.js"
+    "test:endpoints": "node test_endpoints.js",
+    "test:resume": "node test_resume_analyzer.js"
   },
   "dependencies": {
     "axios": "^1.19.0",
