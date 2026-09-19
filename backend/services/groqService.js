@@ -1,6 +1,7 @@
 import axios from "axios";
 import { RESUME_ANALYZER_JSON_SCHEMA, buildAnalyzerPrompts } from "../utils/analyzerPrompt.js";
 import { validateAnalysis } from "../utils/analysisValidator.js";
+import { generateLocalResumeAnalysis } from "./heuristicAnalyzer.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-oss-120b";
@@ -41,19 +42,24 @@ export class GroqResumeAnalyzerService {
   /**
    * Analyzes resume text with Groq using Structured Outputs and rate-limit resilience.
    * Deduplicates concurrent in-flight requests for the same resume text/hash.
+   * Falls back gracefully to intelligent local heuristic extraction if no API key is provided.
    * @param {string} resumeText - Normalized resume text
    * @param {string} [resumeHash] - Deterministic SHA256 hash
    * @returns {Promise<{ analysis: object, modelUsed: string, usage: object }>}
    */
   async analyze(resumeText, resumeHash = "") {
-    if (!this.isConfigured()) {
-      throw new Error(
-        "Groq API key is not configured. Please set GROQ_API_KEY in the backend environment."
-      );
-    }
-
     if (!resumeText || typeof resumeText !== "string" || resumeText.length < 50) {
       throw new Error("Resume content is insufficient for analysis (minimum 50 characters required).");
+    }
+
+    if (!this.isConfigured()) {
+      console.warn("[GroqResumeAnalyzerService] GROQ_API_KEY is not configured; running resilient local AI engine.");
+      const localAnalysis = generateLocalResumeAnalysis(resumeText);
+      return {
+        analysis: localAnalysis,
+        modelUsed: "local-heuristic-engine",
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      };
     }
 
     // In-flight deduplication: if an identical analysis is already processing, join its promise

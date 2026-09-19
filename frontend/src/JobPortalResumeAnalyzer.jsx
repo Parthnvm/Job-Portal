@@ -186,9 +186,21 @@ export function ResumeAnalyzerView() {
       const formData = new FormData();
       formData.append("resume", file);
 
+      const userStr = localStorage.getItem("user");
+      const userHeaders = {};
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          if (u?._id) userHeaders["x-user-id"] = u._id;
+        } catch (e) {}
+      }
+      const token = localStorage.getItem("token");
+      if (token) userHeaders["Authorization"] = `Bearer ${token}`;
+
       const res = await API.post("/user/analyze-resume", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
+          ...userHeaders,
         },
       });
 

@@ -262,15 +262,7 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
-    // Ensure Groq is configured
-    if (!groqResumeAnalyzer.isConfigured()) {
-      return res.status(503).json({
-        message: "Groq AI service is not configured. Please set GROQ_API_KEY in the backend environment.",
-        success: false,
-      });
-    }
-
-    // Perform AI analysis via Groq with structured outputs
+    // Perform AI analysis via Groq with structured outputs (or resilient local heuristic engine if unconfigured)
     const result = await groqResumeAnalyzer.analyze(text, hash);
 
     // Save persistent analysis in database
