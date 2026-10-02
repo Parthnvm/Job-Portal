@@ -7,7 +7,9 @@ const userSchema = new mongoose.Schema({
     email: {
         type:String,
         required:true,
-        unique:true
+        unique:true,
+        lowercase:true,
+        trim:true
     },
     phoneNumber: {
         type:String,
@@ -37,4 +39,7 @@ const userSchema = new mongoose.Schema({
     },
 }, {timestamps:true});
 
-export const User = mongoose.model('User', userSchema);
+userSchema.index({ "profile.googleEmail": 1 }, { sparse: true });
+userSchema.index({ "profile.githubEmail": 1 }, { sparse: true });
+
+export const User = mongoose.model('User', userSchema);

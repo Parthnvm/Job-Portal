@@ -6,17 +6,41 @@ import axios from "axios";
 import { extractResumeText } from "../utils/resumeExtractor.js";
 import { groqResumeAnalyzer } from "../services/groqService.js";
 import { ResumeAnalysis } from "../models/resumeAnalysis.model.js";
+import { isValidEmail, isValidPassword, isValidRole } from "../utils/validator.js";
 
 export const register = async (req, res) => {
   try {
     const { fullname, email, phoneNumber, password, role } = req.body;
     if (!fullname || !email || !phoneNumber || !password || !role) {
       return res.status(400).json({
-        message: "Something is missing",
+        message: "All fields (fullname, email, phoneNumber, password, role) are required.",
         success: false,
       });
     }
-    const user = await User.findOne({ email });
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        message: "Please provide a valid email address.",
+        success: false,
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters long.",
+        success: false,
+      });
+    }
+
+    if (!isValidRole(role)) {
+      return res.status(400).json({
+        message: "Role must be either 'student' or 'recruiter'.",
+        success: false,
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (user) {
       return res.status(400).json({
         message: "User already exists with this email.",
@@ -26,19 +50,19 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await User.create({
-      fullname,
-      email,
-      phoneNumber,
+      fullname: fullname.trim(),
+      email: cleanEmail,
+      phoneNumber: String(phoneNumber).trim(),
       password: hashedPassword,
       role,
     });
 
-    return res.status(200).json({
+    return res.status(201).json({
       message: "Account created successfully.",
       success: true,
     });
   } catch (error) {
-    console.log(error);
+    console.error("[register error]:", error);
     return res.status(500).json({
       message: "Internal server error",
       success: false,
@@ -51,12 +75,13 @@ export const login = async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) {
       return res.status(400).json({
-        message: "Something is missing",
+        message: "Email, password, and role are required.",
         success: false,
       });
     }
 
-    let user = await User.findOne({ email });
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({
         message: "Incorrect email or password.",
@@ -83,11 +108,12 @@ export const login = async (req, res) => {
     const tokenData = {
       userId: user._id,
     };
-    const token = await jwt.sign(tokenData, process.env.SECRET_KEY, {
+    const secretKey = process.env.SECRET_KEY || process.env.JWT_SECRET || "fallback_dev_secret_key";
+    const token = jwt.sign(tokenData, secretKey, {
       expiresIn: "1d",
     });
 
-    user = {
+    const userResponse = {
       _id: user._id,
       fullname: user.fullname,
       email: user.email,
@@ -105,11 +131,12 @@ export const login = async (req, res) => {
       })
       .json({
         message: `Welcome back ${user.fullname}`,
-        user,
+        user: userResponse,
+        token,
         success: true,
       });
   } catch (error) {
-    console.log(error);
+    console.error("[login error]:", error);
     return res.status(500).json({
       message: "Internal server error",
       success: false,
@@ -453,10 +480,11 @@ export const googleLogin = async (req, res) => {
       .json({
         message: `Welcome back ${user.fullname}`,
         user,
+        token: jwtToken,
         success: true,
       });
   } catch (error) {
-    console.log(error);
+    console.error("[googleLogin error]:", error);
     return res.status(500).json({
       message: "Google authentication failed",
       success: false,
@@ -465,10 +493,11 @@ export const googleLogin = async (req, res) => {
 };
 
 export const githubCallback = async (req, res) => {
+  const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
   try {
     const { code, state } = req.query; // 'state' contains selected role (student or recruiter)
     if (!code) {
-      return res.redirect("http://localhost:5173/auth?error=missing_code");
+      return res.redirect(`${clientOrigin}/auth?error=missing_code`);
     }
 
     // Exchange auth code for access token
@@ -489,7 +518,7 @@ export const githubCallback = async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
     if (!accessToken) {
-      return res.redirect("http://localhost:5173/auth?error=token_failed");
+      return res.redirect(`${clientOrigin}/auth?error=token_failed`);
     }
 
     // Fetch user profile info from GitHub
@@ -522,7 +551,7 @@ export const githubCallback = async (req, res) => {
     }
 
     // Check for linking flow
-    const existingToken = req.cookies.token;
+    const existingToken = req.cookies?.token;
     let loggedInUserId = null;
     if (existingToken && state === 'link') {
       try {
@@ -538,7 +567,7 @@ export const githubCallback = async (req, res) => {
       const currentUser = await User.findById(loggedInUserId);
       if (currentUser && currentUser.profile.githubEmail === email) {
         // Already linked to this user — treat as success
-        return res.redirect("http://localhost:5173/?link=github_success");
+        return res.redirect(`${clientOrigin}/?link=github_success`);
       }
 
       // Check if email is linked to a DIFFERENT user
@@ -550,15 +579,15 @@ export const githubCallback = async (req, res) => {
         _id: { $ne: loggedInUserId }
       });
       if (existingLinkedUser) {
-        return res.redirect("http://localhost:5173/?error=github_already_linked");
+        return res.redirect(`${clientOrigin}/?error=github_already_linked`);
       }
 
       if (!currentUser) {
-        return res.redirect("http://localhost:5173/?error=user_not_found");
+        return res.redirect(`${clientOrigin}/?error=user_not_found`);
       }
       currentUser.profile.githubEmail = email;
       await currentUser.save();
-      return res.redirect("http://localhost:5173/?link=github_success");
+      return res.redirect(`${clientOrigin}/?link=github_success`);
     }
 
     // Find user by email or profile.githubEmail
@@ -605,10 +634,10 @@ export const githubCallback = async (req, res) => {
       sameSite: "lax",
     });
 
-    return res.redirect("http://localhost:5173/");
+    return res.redirect(`${clientOrigin}/`);
   } catch (error) {
-    console.log(error);
-    return res.redirect("http://localhost:5173/auth?error=github_failed");
+    console.error("[githubCallback error]:", error);
+    return res.redirect(`${clientOrigin}/auth?error=github_failed`);
   }
 };
 

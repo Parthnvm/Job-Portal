@@ -16,51 +16,51 @@ const isAuthenticated = async (req, res, next) => {
       token = req.headers["x-access-token"];
     }
 
-    // 3. Verify JWT token if present
-    if (token) {
-      try {
-        const decode = jwt.verify(token, process.env.SECRET_KEY);
-        if (decode && decode.userId) {
-          req.id = decode.userId;
-          return next();
-        }
-      } catch (err) {
-        console.warn("[isAuthenticated] Token verification warning:", err.message);
-      }
+    if (!token) {
+      return res.status(401).json({
+        message: "Authentication required. Please log in.",
+        success: false,
+      });
     }
 
-    // 4. Client-provided user ID (from frontend localStorage user state)
-    const clientUserId = req.headers["x-user-id"] || req.headers["x-userid"] || req.body?.userId;
-    if (clientUserId) {
-      try {
-        const userExists = await User.findById(clientUserId).select("_id");
-        if (userExists) {
-          req.id = userExists._id.toString();
-          return next();
-        }
-      } catch (dbErr) {
-        // Continue to fallback
-      }
+    const secretKey = process.env.SECRET_KEY || process.env.JWT_SECRET;
+    if (!secretKey) {
+      console.error("[isAuthenticated] SECRET_KEY / JWT_SECRET environment variable is not defined!");
+      return res.status(500).json({
+        message: "Authentication configuration error.",
+        success: false,
+      });
     }
 
-    // 5. Resilient fallback: use most recently active student user in DB
-    const fallbackUser = await User.findOne({ role: "student" }).sort({ updatedAt: -1 });
-    if (fallbackUser) {
-      req.id = fallbackUser._id.toString();
-      return next();
+    let decode;
+    try {
+      decode = jwt.verify(token, secretKey);
+    } catch (jwtErr) {
+      return res.status(401).json({
+        message: jwtErr.name === "TokenExpiredError" ? "Session expired. Please log in again." : "Invalid authentication token.",
+        success: false,
+      });
     }
 
-    // 6. Last resort: any user in database
-    const anyUser = await User.findOne({}).sort({ updatedAt: -1 });
-    if (anyUser) {
-      req.id = anyUser._id.toString();
-      return next();
+    if (!decode || !decode.userId) {
+      return res.status(401).json({
+        message: "Invalid token payload.",
+        success: false,
+      });
     }
 
-    return res.status(401).json({
-      message: "User not authenticated. Please log in.",
-      success: false,
-    });
+    // Attach user record and ID to request
+    const user = await User.findById(decode.userId).select("-password");
+    if (!user) {
+      return res.status(401).json({
+        message: "User account no longer exists.",
+        success: false,
+      });
+    }
+
+    req.id = user._id.toString();
+    req.user = user;
+    return next();
   } catch (error) {
     console.error("[isAuthenticated error]:", error);
     return res.status(500).json({

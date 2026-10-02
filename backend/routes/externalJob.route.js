@@ -1,4 +1,6 @@
 import express from "express";
+import isAuthenticated from "../middlewares/isAuthenticated.js";
+import authorizeRole from "../middlewares/authorizeRole.js";
 import {
   searchExternalJobs,
   getExternalJobById,
@@ -13,7 +15,8 @@ router.get("/", searchExternalJobs);
 router.get("/search", searchExternalJobs);
 router.get("/:id", getExternalJobById);
 
-// Sync trigger — no auth for MVP (internal/dev use only)
-router.post("/sync", triggerSync);
+// Sync trigger — restricted to authenticated recruiters and admins
+router.post("/sync", isAuthenticated, authorizeRole("recruiter", "admin"), triggerSync);
 
 export default router;
+

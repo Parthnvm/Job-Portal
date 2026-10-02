@@ -1,12 +1,19 @@
 import mongoose from "mongoose";
 
 const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('Mongodb connected successfully');
-    } catch(error) {
-        console.log(error);
-    }
-}
+  const uri = process.env.MONGO_URI;
+  if (!uri) {
+    console.warn("[connectDB] Warning: MONGO_URI is not set. Database queries will fail until configured.");
+    return false;
+  }
+  try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    console.log("MongoDB connected successfully");
+    return true;
+  } catch (error) {
+    console.error("[connectDB error]: Failed to connect to MongoDB:", error.message);
+    return false;
+  }
+};
 
-export default connectDB;
+export default connectDB;

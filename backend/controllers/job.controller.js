@@ -3,8 +3,8 @@ import { ExternalJob } from "../models/externalJob.model.js";
 import { Company } from "../models/company.model.js";
 import { convertUSDToINR, formatSalaryRangeINR, formatSalaryDisplay } from "../utils/currency.js";
 
-// for admin
-export const postJob = async (req, res) => {
+// for admin/recruiter
+export const postJob = async (req, res, next) => {
   try {
     const {
       title,
@@ -24,58 +24,88 @@ export const postJob = async (req, res) => {
       !title ||
       !description ||
       !requirements ||
-      !salary ||
+      salary === undefined ||
       !location ||
       !jobType ||
-      !experience ||
+      experience === undefined ||
       !position ||
       !companyId
     ) {
       return res.status(400).json({
-        message: "Something is missing.",
+        message: "Missing required job fields.",
         success: false,
       });
     }
+
+    const numericSalary = Number(salary);
+    if (isNaN(numericSalary) || numericSalary < 0) {
+      return res.status(400).json({
+        message: "Salary must be a valid positive number.",
+        success: false,
+      });
+    }
+
+    // Safely parse requirements
+    let parsedRequirements = [];
+    if (Array.isArray(requirements)) {
+      parsedRequirements = requirements.map((r) => String(r).trim()).filter(Boolean);
+    } else if (typeof requirements === "string") {
+      parsedRequirements = requirements
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean);
+    }
+
     const job = await Job.create({
-      title,
-      description,
-      requirements: requirements.split(","),
-      salary: Number(salary),
-      location,
-      jobType,
-      experiencelevel: experience,
-      position,
+      title: title.trim(),
+      description: description.trim(),
+      requirements: parsedRequirements,
+      salary: numericSalary,
+      location: location.trim(),
+      jobType: jobType.trim(),
+      experiencelevel: Number(experience) || 0,
+      position: Number(position) || 1,
       company: companyId,
       created_by: userId,
-      logo,
+      logo: logo || undefined,
     });
+
     return res.status(201).json({
       message: "New job created successfully.",
       job,
       success: true,
     });
   } catch (error) {
-    console.log(error);
+    console.error("[postJob error]:", error);
+    return next ? next(error) : res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// for appliers
-export const getAllJob = async (req, res) => {
+// for appliers / public
+export const getAllJob = async (req, res, next) => {
   try {
-    const keyword = req.query.keyword || "";
-    const query = {
-      $or: [
-        { title: { $regex: keyword, $options: "i" } },
-        { description: { $regex: keyword, $options: "i" } },
-      ],
-    };
-    const internalJobs = (await Job.find(query)
-      .populate({
-        path: "company",
-      })
-      .sort({ createdAt: -1 })) || [];
+    const keyword = typeof req.query.keyword === "string" ? req.query.keyword.trim() : "";
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
 
-    const processedInternalJobs = internalJobs.map((j) => {
+    const query = keyword
+      ? {
+          $or: [
+            { title: { $regex: keyword, $options: "i" } },
+            { description: { $regex: keyword, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const [totalInternal, internalJobs] = await Promise.all([
+      Job.countDocuments(query),
+      Job.find(query)
+        .populate({ path: "company" })
+        .sort({ createdAt: -1 })
+        .limit(limit),
+    ]);
+
+    const processedInternalJobs = (internalJobs || []).map((j) => {
       const jobObj = j.toObject ? j.toObject() : { ...j };
       jobObj.salaryDisplay = formatSalaryDisplay(jobObj.salary);
       return jobObj;
@@ -96,7 +126,7 @@ export const getAllJob = async (req, res) => {
         : {};
       const extDocs = await ExternalJob.find(extQuery)
         .sort({ postedAt: -1 })
-        .limit(40);
+        .limit(Math.max(10, limit));
 
       formattedExtJobs = extDocs.map((j) => {
         const idStr = String(j._id);
@@ -146,18 +176,24 @@ export const getAllJob = async (req, res) => {
       jobs: allJobs,
       success: true,
       count: allJobs.length,
+      pagination: {
+        total: totalInternal + formattedExtJobs.length,
+        page,
+        limit,
+        totalPages: Math.ceil((totalInternal + formattedExtJobs.length) / limit) || 1,
+      },
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({
+    console.error("[getAllJob error]:", error);
+    return next ? next(error) : res.status(500).json({
       message: "Internal server error",
       success: false,
     });
   }
 };
 
-// for appliers
-export const getJobById = async (req, res) => {
+// for appliers / public
+export const getJobById = async (req, res, next) => {
   try {
     const jobId = req.params.id;
     let job = await Job.findById(jobId).populate({ path: "company" }).catch(() => null);
@@ -217,30 +253,28 @@ export const getJobById = async (req, res) => {
       success: true,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({
+    console.error("[getJobById error]:", error);
+    return next ? next(error) : res.status(500).json({
       message: "Internal server error",
       success: false,
     });
   }
 };
 
-//how many jobs has admin created till now
-export const getAdminJobs = async (req, res) => {
+// how many jobs has admin/recruiter created till now
+export const getAdminJobs = async (req, res, next) => {
   try {
     const adminId = req.id;
-    const jobs = await Job.find({ created_by: adminId });
-    if (!jobs) {
-      return res.status(404).json({
-        message: "Jobs not found.",
-        success: false,
-      });
-    }
+    const jobs = (await Job.find({ created_by: adminId }).populate({ path: "company" }).sort({ createdAt: -1 })) || [];
     return res.status(200).json({
       jobs,
       success: true,
     });
   } catch (error) {
-    console.log(error);
+    console.error("[getAdminJobs error]:", error);
+    return next ? next(error) : res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
   }
 };

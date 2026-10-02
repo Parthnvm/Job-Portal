@@ -53,4 +53,11 @@ const jobSchema = new mongoose.Schema({
     ]
 }, {timestamps:true});
 
-export const Job = mongoose.model("Job", jobSchema);
+// Performance indexes for search and filters
+jobSchema.index({ location: 1 });
+jobSchema.index({ created_by: 1 });
+jobSchema.index({ company: 1 });
+jobSchema.index({ createdAt: -1 });
+jobSchema.index({ title: 1, createdAt: -1 });
+
+export const Job = mongoose.model("Job", jobSchema);
