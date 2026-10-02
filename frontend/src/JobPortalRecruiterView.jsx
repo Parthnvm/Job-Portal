@@ -321,21 +321,33 @@ export function JobPortalRecruiterView({ onSignOut }) {
       if (jobsRes.data.success) {
         const adminJobs = jobsRes.data.jobs || [];
         setJobs(adminJobs);
-        const allApplicants = [];
-        for (const j of adminJobs) {
-          try {
-            const appRes = await API.get(`/application/${j._id}/applicants`);
-            if (appRes.data.success && appRes.data.job?.applications) {
-              appRes.data.job.applications.forEach((app) => {
-                allApplicants.push({
-                  ...app,
-                  jobTitle: j.title,
-                  jobId: j._id
+        let allApplicants = [];
+        try {
+          const batchRes = await API.get("/application/recruiter/all");
+          if (batchRes.data?.success && Array.isArray(batchRes.data.applications)) {
+            allApplicants = batchRes.data.applications.map((app) => ({
+              ...app,
+              jobTitle: app.job?.title || "Unknown Job",
+              jobId: app.job?._id || app.job,
+            }));
+          }
+        } catch (batchErr) {
+          // Fallback to per-job query
+          for (const j of adminJobs) {
+            try {
+              const appRes = await API.get(`/application/${j._id}/applicants`);
+              if (appRes.data.success && appRes.data.job?.applications) {
+                appRes.data.job.applications.forEach((app) => {
+                  allApplicants.push({
+                    ...app,
+                    jobTitle: j.title,
+                    jobId: j._id
+                  });
                 });
-              });
+              }
+            } catch (err) {
+              console.error(`Error fetching applicants for job ${j._id}:`, err);
             }
-          } catch (err) {
-            console.error(`Error fetching applicants for job ${j._id}:`, err);
           }
         }
         allApplicants.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

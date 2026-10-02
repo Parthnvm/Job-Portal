@@ -205,7 +205,10 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
               console.error("Failed to auto-register company:", companyErr);
             }
           }
-          onSuccess(userObj);
+          if (loginRes.data.token) {
+            localStorage.setItem("token", loginRes.data.token);
+          }
+          onSuccess(userObj, loginRes.data.token);
         } else {
           throw new Error(loginRes.data.message || "Login failed after registration");
         }
@@ -216,7 +219,10 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
           role
         });
         if (loginRes.data.success) {
-          onSuccess(loginRes.data.user);
+          if (loginRes.data.token) {
+            localStorage.setItem("token", loginRes.data.token);
+          }
+          onSuccess(loginRes.data.user, loginRes.data.token);
         } else {
           throw new Error(loginRes.data.message || "Login failed");
         }
@@ -240,7 +246,10 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
         role
       });
       if (loginRes.data.success) {
-        onSuccess(loginRes.data.user);
+        if (loginRes.data.token) {
+          localStorage.setItem("token", loginRes.data.token);
+        }
+        onSuccess(loginRes.data.user, loginRes.data.token);
       } else {
         throw new Error(loginRes.data.message || `${provider} authentication failed`);
       }
@@ -261,7 +270,10 @@ function AuthForm({ role, mode, setMode, onSuccess, onBack }) {
           role
         });
         if (res.data.success) {
-          onSuccess(res.data.user);
+          if (res.data.token) {
+            localStorage.setItem("token", res.data.token);
+          }
+          onSuccess(res.data.user, res.data.token);
         } else {
           throw new Error(res.data.message || "Google authentication failed");
         }
