@@ -46,6 +46,10 @@ async function upsertJob(job) {
         salaryDisplay: job.salaryDisplay,
         postedAt: job.postedAt,
         expiresAt: job.expiresAt,
+        refreshedAt: new Date(),
+      },
+      // importedAt is only set on INSERT — never overwritten on update
+      $setOnInsert: {
         importedAt: new Date(),
       },
     };
@@ -54,9 +58,10 @@ async function upsertJob(job) {
 
     if (result.upsertedCount > 0) return "inserted";
     if (result.modifiedCount > 0) return "updated";
-    return "updated";
+    // nModified === 0 and upsertedCount === 0 means the document was found but unchanged
+    return "unchanged";
   } catch (error) {
-    if (error.code === 11000) return "updated";
+    if (error.code === 11000) return "unchanged"; // concurrent upsert race — document already exists
     console.error(`[externalJobSync] Error upserting job "${job.externalId}":`, error.message);
     return "error";
   }
@@ -94,6 +99,7 @@ export async function syncExternalJobs({ force = false } = {}) {
   const keywords = getSyncKeywords();
   let inserted = 0;
   let updated = 0;
+  let unchanged = 0;
   let errors = 0;
 
   const providers = jobProviderManager.getAllProviders().filter((p) => p.isConfigured());
@@ -124,6 +130,7 @@ export async function syncExternalJobs({ force = false } = {}) {
           const outcome = await upsertJob(job);
           if (outcome === "inserted") inserted++;
           else if (outcome === "updated") updated++;
+          else if (outcome === "unchanged") unchanged++;
           else errors++;
         }
       } catch (err) {
@@ -143,15 +150,15 @@ export async function syncExternalJobs({ force = false } = {}) {
       $set: {
         status: "idle",
         lastSyncCompletedAt: completedAt,
-        lastStats: { inserted, updated, errors },
+        lastStats: { inserted, updated, unchanged, errors },
       },
     }
   );
 
   console.log(
-    `[externalJobSync] Sync complete. inserted=${inserted} updated=${updated} errors=${errors}`
+    `[externalJobSync] Sync complete. inserted=${inserted} updated=${updated} unchanged=${unchanged} errors=${errors}`
   );
-  return { inserted, updated, errors, skipped: false };
+  return { inserted, updated, unchanged, errors, skipped: false };
 }
 
 /**

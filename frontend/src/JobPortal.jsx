@@ -28,22 +28,17 @@ import {
   Star,
   Bell,
   Menu,
-  X
+  X,
+  RotateCw
 } from "lucide-react";
 import API from "./services/api";
 import { formatSalaryDisplay, getJobNumericSalary } from "./utils/currency";
+import { formatRelativeTime } from "./utils/dateParser";
+import { deduplicateFrontendJobs, mergeAndDeduplicateJobs } from "./utils/jobDeduplicator";
+import { STATIC_DEMO_JOBS } from "./utils/demoJobs";
 import { useTheme, ThemeToggle, T, DARK_THEME, LIGHT_THEME } from "./context/ThemeContext";
 export const getRelativeTime = (dateStr) => {
-  if (!dateStr) return "1d ago";
-  const now = /* @__PURE__ */ new Date();
-  const postedDate = new Date(dateStr);
-  const diffMs = now.getTime() - postedDate.getTime();
-  if (isNaN(diffMs)) return "1d ago";
-  const diffHrs = Math.floor(diffMs / (1e3 * 60 * 60));
-  if (diffHrs < 1) return "Just now";
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  const diffDays = Math.floor(diffHrs / 24);
-  return `${diffDays}d ago`;
+  return formatRelativeTime(dateStr, "Recently posted");
 };
 export { T };
 export function Button({
@@ -475,7 +470,7 @@ function HeroSection({
     icon={<Search size={15} />}
     style={{ borderRadius: 10, flexShrink: 0 }}
     onClick={() => {
-      onSearch?.(jobQuery);
+      onSearch?.(jobQuery, location);
       document.getElementById("jobs-section")?.scrollIntoView({ behavior: "smooth" });
     }}
   >
@@ -495,7 +490,7 @@ function HeroSection({
     key={p}
     onClick={() => {
       setJobQuery(p);
-      onSearch?.(p);
+      onSearch?.(p, location);
       document.getElementById("jobs-section")?.scrollIntoView({ behavior: "smooth" });
     }}
     style={{ padding: "4px 11px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 20, color: T.textMid, fontSize: "0.75rem", cursor: "pointer", transition: "all 0.18s", fontFamily: T.font }}
@@ -650,10 +645,12 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
   const [saved, setSaved] = useState(false);
   const jobType = job.jobType || job.type || "Full-time";
   const [typeBg, typeColor] = TYPE_COLORS[jobType] ?? [T.purpleDim, T.purpleL];
-  const companyName = job.company?.name || job.company || "Company";
+  const companyName = job.company?.name || job.company || job.companyName || "Company";
   const logoText = companyName.slice(0, 2).toUpperCase();
   const formattedSalary = formatSalaryDisplay(job.salaryDisplay || job.salary);
-  const relativeTime = getRelativeTime(job.createdAt) || job.posted || "1d ago";
+  const pubDate = job.postedAt || job.posted_date || job.createdAt;
+  const relativeTime = getRelativeTime(pubDate);
+  const locationText = job.location || (job.isRemote ? "Remote" : "India");
 
   return <GlassCard style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", padding: "20px 22px", position: "relative", overflow: "hidden" }}>
       {job.featured && <div style={{ position: "absolute", top: 0, right: 0 }}>
@@ -691,15 +688,28 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
 
       {/* Metadata: Location, Salary, Time */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, minHeight: 22, alignItems: "center" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><MapPin size={12} />{job.location}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><MapPin size={12} />{locationText}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Banknote size={12} />{formattedSalary}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Clock size={12} />{relativeTime}</span>
+        {relativeTime && <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: T.textMid, whiteSpace: "nowrap" }}><Clock size={12} />{relativeTime}</span>}
       </div>
 
       {/* Skills / Tags Row */}
       <div className="job-card-tags">
+        {job.isExternal ? (
+          <Tag color={T.purpleDim} textColor={T.purpleL}>
+            {job.provider === "jooble" ? "Jooble" : (job.provider === "adzuna" ? "Adzuna" : job.provider || "Partner")}
+          </Tag>
+        ) : job.isDemo ? (
+          <Tag color="rgba(251,146,60,0.12)" textColor={T.orange}>
+            Demo
+          </Tag>
+        ) : (
+          <Tag color={T.greenDim} textColor={T.green}>
+            Direct
+          </Tag>
+        )}
         <Tag color={typeBg} textColor={typeColor}>{jobType}</Tag>
-        {(job.requirements || job.tags || []).slice(0, 3).map((tg) => <Tag key={tg} color="rgba(255,255,255,0.06)" textColor={T.textMid}>{tg}</Tag>)}
+        {(job.requirements || job.skills || job.tags || []).slice(0, 3).map((tg) => <Tag key={tg} color="rgba(255,255,255,0.06)" textColor={T.textMid}>{tg}</Tag>)}
       </div>
 
       {/* Pinned Action Buttons Row */}
@@ -722,7 +732,7 @@ function JobCard({ job, onSave, onDetails, onApplyExternalJob }) {
             }
           }}
         >
-          {job.isExternal ? `Apply (${job.provider === "jooble" ? "Jooble" : "Adzuna"})` : "Apply Now"}
+          {job.isExternal ? `Apply (${job.provider === "jooble" ? "Jooble" : (job.provider === "adzuna" ? "Adzuna" : job.provider || "Partner")})` : "Apply Now"}
         </Button>
         <Button
           variant="ghost"
@@ -740,17 +750,39 @@ function LatestJobs({
   onClearFilter,
   jobs = [],
   onDetailsClick,
-  onApplyExternalJob
+  onApplyExternalJob,
+  onRefresh,
+  refreshing = false,
+  lastRefreshed = null
 }) {
   const [savedIds, setSavedIds] = useState(/* @__PURE__ */ new Set());
   const [typeFilter, setTypeFilter] = useState("All");
   const typeFilters = ["All", "Full-time", "Hybrid", "Remote"];
   const catLabel = categoryFilter ? CATEGORIES.find((c) => c.label === categoryFilter) : null;
   const filtered = jobs.filter((j) => {
-    const jobCategory = j.category || "Engineering";
-    const passCategory = !categoryFilter || jobCategory.toLowerCase() === categoryFilter.toLowerCase();
-    const jobType = j.jobType || j.type || "Full-time";
-    const passType = typeFilter === "Remote" ? j.location?.toLowerCase() === "remote" : typeFilter === "All" ? true : jobType.toLowerCase() === typeFilter.toLowerCase();
+    let passCategory = true;
+    if (categoryFilter) {
+      const catLower = categoryFilter.toLowerCase();
+      const jobCategory = (j.category || "").toLowerCase();
+      const jobTitle = (j.title || "").toLowerCase();
+      const jobDesc = (j.description || "").toLowerCase();
+      const jobReqs = Array.isArray(j.requirements) ? j.requirements.join(" ").toLowerCase() : "";
+      passCategory = jobCategory.includes(catLower) || jobTitle.includes(catLower) || jobDesc.includes(catLower) || jobReqs.includes(catLower);
+      if (!passCategory && catLower.includes("ops")) {
+        passCategory = jobTitle.includes("devops") || jobTitle.includes("sre") || jobTitle.includes("operations") || jobDesc.includes("devops");
+      }
+    }
+
+    const jobType = (j.jobType || j.type || "Full-time").toLowerCase();
+    const locLower = (j.location || "").toLowerCase();
+    const isRemote = j.isRemote || locLower.includes("remote");
+
+    let passType = true;
+    if (typeFilter === "Remote") {
+      passType = isRemote;
+    } else if (typeFilter !== "All") {
+      passType = jobType.includes(typeFilter.toLowerCase());
+    }
     return passCategory && passType;
   });
   const displayedJobs = filtered.slice(0, 12);
@@ -800,25 +832,57 @@ function LatestJobs({
           </h2>
         </div>
 
-        <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-          {typeFilters.map((tf) => <button
-      key={tf}
-      onClick={() => setTypeFilter(tf)}
-      style={{
-        padding: "6px 14px",
-        borderRadius: 20,
-        fontSize: "0.78rem",
-        fontWeight: typeFilter === tf ? 600 : 400,
-        background: typeFilter === tf ? T.purpleDim : T.surface,
-        color: typeFilter === tf ? T.purpleL : T.textMid,
-        border: `1px solid ${typeFilter === tf ? T.purpleL + "44" : T.border}`,
-        cursor: "pointer",
-        transition: "all 0.18s",
-        fontFamily: T.font
-      }}
-    >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh job listings"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 14px",
+                borderRadius: 20,
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                background: refreshing ? T.surfaceHov : T.surface,
+                color: T.purpleL,
+                border: `1px solid ${T.purpleL}44`,
+                cursor: refreshing ? "not-allowed" : "pointer",
+                transition: "all 0.18s",
+                fontFamily: T.font
+              }}
+            >
+              <RotateCw size={13} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+              <span>{refreshing ? "Refreshing..." : "Refresh Jobs"}</span>
+            </button>
+          )}
+          {lastRefreshed && (
+            <span style={{ fontSize: "0.72rem", color: T.textDim }}>
+              Updated {formatRelativeTime(lastRefreshed, "just now")}
+            </span>
+          )}
+          <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+            {typeFilters.map((tf) => <button
+              key={tf}
+              onClick={() => setTypeFilter(tf)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 20,
+                fontSize: "0.78rem",
+                fontWeight: typeFilter === tf ? 600 : 400,
+                background: typeFilter === tf ? T.purpleDim : T.surface,
+                color: typeFilter === tf ? T.purpleL : T.textMid,
+                border: `1px solid ${typeFilter === tf ? T.purpleL + "44" : T.border}`,
+                cursor: "pointer",
+                transition: "all 0.18s",
+                fontFamily: T.font
+              }}
+            >
               {tf}
             </button>)}
+          </div>
         </div>
       </div>
 
@@ -1119,27 +1183,82 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
   const { isDark } = useTheme();
   const [section, setSection] = useState("find-jobs");
   const [categoryFilter, setCategoryFilter] = useState(null);
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState(() => mergeAndDeduplicateJobs([], [], STATIC_DEMO_JOBS));
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [searchParams, setSearchParams] = useState({ query: "", location: "" });
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobDetails, setJobDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const fetchJobs = async (query = "") => {
-    setLoading(true);
+  const abortControllerRef = useRef(null);
+
+  const fetchJobs = async (query = "", location = "", isManualRefresh = false) => {
+    if (!isManualRefresh && jobs.length === 0) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const res = await API.get(`/job/get?keyword=${query}`);
-      if (res.data.success) {
-        setJobs(res.data.jobs);
+      const qParams = new URLSearchParams();
+      if (query) qParams.append("keyword", query);
+      if (location) qParams.append("location", location);
+      if (isManualRefresh) qParams.append("refresh", "true");
+
+      const url = `/job/get${qParams.toString() ? `?${qParams.toString()}` : ""}`;
+      const res = await API.get(url, { signal: abortControllerRef.current.signal });
+      if (res.data?.success && Array.isArray(res.data.jobs)) {
+        setJobs((prevJobs) => {
+          return mergeAndDeduplicateJobs(prevJobs, res.data.jobs, STATIC_DEMO_JOBS);
+        });
+        setLastRefreshed(new Date());
       }
     } catch (err) {
-      console.error(err);
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+        return;
+      }
+      console.error("Error fetching jobs in public portal:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
   useEffect(() => {
     fetchJobs();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
+
+  // Background auto-refresh (every 5 minutes or configured interval) & on window refocus
+  useEffect(() => {
+    const refreshIntervalMs = Number(import.meta.env.VITE_AUTO_REFRESH_INTERVAL_MS) || 300000;
+    const intervalTimer = setInterval(() => {
+      fetchJobs(searchParams.query, searchParams.location, true);
+    }, refreshIntervalMs);
+
+    const handleFocus = () => {
+      if (lastRefreshed && Date.now() - new Date(lastRefreshed).getTime() > 120000) {
+        fetchJobs(searchParams.query, searchParams.location, true);
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalTimer);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [searchParams, lastRefreshed]);
+
   const handleSectionChange = (s) => {
     setSection(s);
     if (s !== "find-jobs") setCategoryFilter(null);
@@ -1174,11 +1293,23 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
 
       <AnimatePresence mode="wait">
         {section === "find-jobs" && <motion.div key="find-jobs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}>
-            <HeroSection onSearch={(query) => fetchJobs(query)} />
+            <HeroSection onSearch={(query, loc) => {
+              setSearchParams({ query, location: loc });
+              fetchJobs(query, loc);
+            }} />
             <CategoryCarousel onCategoryClick={handleCategoryClick} activeCategory={categoryFilter} />
             {loading ? <div style={{ textAlign: "center", padding: "60px 0", color: T.textDim }}>
                 <div style={{ fontSize: "1.2rem", color: T.textMid }}>Loading jobs...</div>
-              </div> : <LatestJobs categoryFilter={categoryFilter} onClearFilter={() => setCategoryFilter(null)} jobs={jobs} onDetailsClick={handleDetailsClick} onApplyExternalJob={onApplyExternalJob} />}
+              </div> : <LatestJobs
+                categoryFilter={categoryFilter}
+                onClearFilter={() => setCategoryFilter(null)}
+                jobs={jobs}
+                onDetailsClick={handleDetailsClick}
+                onApplyExternalJob={onApplyExternalJob}
+                onRefresh={() => fetchJobs(searchParams.query, searchParams.location, true)}
+                refreshing={refreshing}
+                lastRefreshed={lastRefreshed}
+              />}
           </motion.div>}
         {section === "companies" && <motion.div key="companies" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}>
             <CompaniesSection />
@@ -1264,7 +1395,9 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
                     }}
                   >
                     {jobDetails?.isExternal
-                      ? `Apply on ${jobDetails.provider === "jooble" ? "Jooble India" : "Adzuna India"}`
+                      ? `Apply on ${jobDetails.provider === "jooble" ? "Jooble India" : (jobDetails.provider === "adzuna" ? "Adzuna India" : jobDetails.provider || "Partner Site")}`
+                      : jobDetails?.isDemo
+                      ? "Demo Role (Sign in to Explore)"
                       : "Sign in to Apply"}
                   </Button>
                 </> : null}

@@ -164,3 +164,147 @@ describe("Authentication & RBAC Middleware Tests", () => {
     assert.equal(nextCalled, true, "Recruiter should be permitted through recruiter-only action");
   });
 });
+
+import { setCsrfCookie, csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
+
+describe("CSRF Protection Middleware Tests", () => {
+  test("setCsrfCookie sets cookie and X-CSRF-Token header when missing", () => {
+    let nextCalled = false;
+    let cookieName = null;
+    let cookieVal = null;
+    let headerKey = null;
+    let headerVal = null;
+
+    const req = { cookies: {} };
+    const res = {
+      cookie(name, val) {
+        cookieName = name;
+        cookieVal = val;
+      },
+      setHeader(key, val) {
+        headerKey = key;
+        headerVal = val;
+      },
+    };
+
+    setCsrfCookie(req, res, () => {
+      nextCalled = true;
+    });
+
+    assert.equal(nextCalled, true);
+    assert.equal(cookieName, "csrf_token");
+    assert.ok(cookieVal && cookieVal.length > 20);
+    assert.equal(headerKey, "X-CSRF-Token");
+    assert.equal(headerVal, cookieVal);
+    assert.equal(req.csrfToken, cookieVal);
+  });
+
+  test("csrfProtection allows safe GET/HEAD/OPTIONS methods without token", () => {
+    for (const method of ["GET", "HEAD", "OPTIONS"]) {
+      let nextCalled = false;
+      const req = { method, headers: {}, cookies: {}, path: "/api/v1/job/get" };
+      const res = {};
+      csrfProtection(req, res, () => {
+        nextCalled = true;
+      });
+      assert.equal(nextCalled, true, `${method} should be allowed without token`);
+    }
+  });
+
+  test("csrfProtection allows requests with Bearer Authorization token", () => {
+    let nextCalled = false;
+    const req = {
+      method: "POST",
+      headers: { authorization: "Bearer some_valid_token" },
+      cookies: {},
+      path: "/api/v1/job/post",
+    };
+    const res = {};
+    csrfProtection(req, res, () => {
+      nextCalled = true;
+    });
+    assert.equal(nextCalled, true, "Requests with Bearer auth should be exempt from CSRF");
+  });
+
+  test("csrfProtection allows mutating requests with valid double-submit token", () => {
+    const validToken = generateCsrfToken();
+    let nextCalled = false;
+    const req = {
+      method: "POST",
+      headers: { "x-csrf-token": validToken },
+      cookies: { csrf_token: validToken },
+      path: "/api/v1/user/login",
+    };
+    const res = {};
+    csrfProtection(req, res, () => {
+      nextCalled = true;
+    });
+    assert.equal(nextCalled, true, "Matching double-submit cookie and header should pass");
+  });
+
+  test("csrfProtection rejects mutating request with missing CSRF tokens from untrusted origin", () => {
+    let nextCalled = false;
+    let statusCode = null;
+    let responseData = null;
+
+    const req = {
+      method: "POST",
+      headers: { origin: "http://malicious-site.com" },
+      cookies: {},
+      path: "/api/v1/user/login",
+    };
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        responseData = data;
+        return this;
+      },
+    };
+
+    csrfProtection(req, res, () => {
+      nextCalled = true;
+    });
+
+    assert.equal(nextCalled, false, "Should block untrusted origin without tokens");
+    assert.equal(statusCode, 403);
+    assert.match(responseData?.message, /CSRF token missing/i);
+  });
+
+  test("csrfProtection rejects mutating request with mismatched CSRF token from untrusted origin", () => {
+    let nextCalled = false;
+    let statusCode = null;
+    let responseData = null;
+
+    const req = {
+      method: "POST",
+      headers: {
+        origin: "http://evil-tracker.org",
+        "x-csrf-token": generateCsrfToken(),
+      },
+      cookies: { csrf_token: generateCsrfToken() },
+      path: "/api/v1/user/login",
+    };
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        responseData = data;
+        return this;
+      },
+    };
+
+    csrfProtection(req, res, () => {
+      nextCalled = true;
+    });
+
+    assert.equal(nextCalled, false, "Should block mismatched tokens");
+    assert.equal(statusCode, 403);
+    assert.match(responseData?.message, /CSRF token mismatch/i);
+  });
+});
+

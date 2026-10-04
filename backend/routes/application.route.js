@@ -7,6 +7,7 @@ import {
   getAppliedJobs,
   updateStatus,
   getRecruiterAllApplicants,
+  getApplicationResume,
 } from "../controllers/application.controller.js";
 
 const router = express.Router();
@@ -20,5 +21,8 @@ router.route("/get").get(isAuthenticated, getAppliedJobs);
 router.route("/recruiter/all").get(isAuthenticated, authorizeRole("recruiter", "admin"), getRecruiterAllApplicants);
 router.route("/:id/applicants").get(isAuthenticated, authorizeRole("recruiter", "admin"), getApplicants);
 router.route("/status/:id/update").post(isAuthenticated, authorizeRole("recruiter", "admin"), updateStatus);
+
+// Application submitted resume access (Applicant, Job Owner Recruiter, or Admin)
+router.route("/:id/resume").get(isAuthenticated, getApplicationResume);
 
 export default router;

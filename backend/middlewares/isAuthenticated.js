@@ -1,61 +1,58 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
+import { config } from "../utils/config.js";
 
+/**
+ * Verifies JWT from cookie or Authorization header.
+ * Skips DB lookup when the token carries embedded role+email claims.
+ * Sets req.id (string) and req.user ({ _id, role, email } or full User doc).
+ */
 const isAuthenticated = async (req, res, next) => {
   try {
     let token = req.cookies?.token;
 
-    // 1. Check Authorization Bearer header
+    // Support Authorization: Bearer <token>
     const authHeader = req.headers.authorization;
-    if (!token && authHeader && authHeader.startsWith("Bearer ")) {
+    if (!token && authHeader?.startsWith("Bearer ")) {
       token = authHeader.split(" ")[1];
     }
 
-    // 2. Check x-access-token header
+    // Support x-access-token header
     if (!token && req.headers["x-access-token"]) {
       token = req.headers["x-access-token"];
     }
 
     if (!token) {
-      return res.status(401).json({
-        message: "Authentication required. Please log in.",
-        success: false,
-      });
+      return res.status(401).json({ message: "Authentication required. Please log in.", success: false });
     }
 
-    const secretKey = process.env.SECRET_KEY || process.env.JWT_SECRET;
-    if (!secretKey) {
-      console.error("[isAuthenticated] SECRET_KEY / JWT_SECRET environment variable is not defined!");
-      return res.status(500).json({
-        message: "Authentication configuration error.",
-        success: false,
-      });
-    }
-
-    let decode;
+    let decoded;
     try {
-      decode = jwt.verify(token, secretKey);
+      decoded = jwt.verify(token, config.jwtSecret);
     } catch (jwtErr) {
       return res.status(401).json({
-        message: jwtErr.name === "TokenExpiredError" ? "Session expired. Please log in again." : "Invalid authentication token.",
+        message: jwtErr.name === "TokenExpiredError"
+          ? "Session expired. Please log in again."
+          : "Invalid authentication token.",
         success: false,
       });
     }
 
-    if (!decode || !decode.userId) {
-      return res.status(401).json({
-        message: "Invalid token payload.",
-        success: false,
-      });
+    if (!decoded?.userId) {
+      return res.status(401).json({ message: "Invalid token payload.", success: false });
     }
 
-    // Attach user record and ID to request
-    const user = await User.findById(decode.userId).select("-password");
+    // Skip DB lookup when token has embedded claims (hot path)
+    if (decoded.role && decoded.email) {
+      req.id = String(decoded.userId);
+      req.user = { _id: decoded.userId, role: decoded.role, email: decoded.email };
+      return next();
+    }
+
+    // Fallback DB lookup for older tokens without embedded claims
+    const user = await User.findById(decoded.userId).select("-password");
     if (!user) {
-      return res.status(401).json({
-        message: "User account no longer exists.",
-        success: false,
-      });
+      return res.status(401).json({ message: "User account no longer exists.", success: false });
     }
 
     req.id = user._id.toString();
@@ -63,10 +60,7 @@ const isAuthenticated = async (req, res, next) => {
     return next();
   } catch (error) {
     console.error("[isAuthenticated error]:", error);
-    return res.status(500).json({
-      message: "Internal server error during authentication.",
-      success: false,
-    });
+    return res.status(500).json({ message: "Internal server error during authentication.", success: false });
   }
 };
 

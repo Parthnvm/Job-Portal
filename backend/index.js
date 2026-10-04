@@ -1,30 +1,51 @@
+import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import crypto from "crypto";
 import connectDB from "./utils/db.js";
+import { config } from "./utils/config.js";
 import userRoute from "./routes/user.routes.js";
 import companyRoute from "./routes/company.route.js";
 import jobRoute from "./routes/job.route.js";
 import applicationRoute from "./routes/application.route.js";
 import externalJobRoute from "./routes/externalJob.route.js";
+import savedJobRoute from "./routes/savedJob.route.js";
 import { scheduleSyncLoop } from "./services/externalJobSync.js";
 import errorHandler from "./middlewares/errorHandler.js";
-
-dotenv.config({});
+import { setCsrfCookie, csrfProtection } from "./middlewares/csrf.js";
 
 const app = express();
 
-// Security headers middleware
+// Security headers
 app.use((req, res, next) => {
+  // Attach request ID for tracing
+  const reqId = req.headers["x-request-id"] || crypto.randomUUID();
+  req.id = reqId;
+  res.setHeader("X-Request-Id", reqId);
+
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  const reqId = req.headers["x-request-id"] || crypto.randomUUID();
-  req.id = reqId;
-  res.setHeader("X-Request-Id", reqId);
+
+  // CSP: allows self, Google OAuth/fonts, data/blob URIs, Groq API
+  // NOTE: Tighten unsafe-inline with nonces before production hardening.
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' https://accounts.google.com https://apis.google.com 'unsafe-inline'",
+    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://accounts.google.com https://api.groq.com",
+    "frame-src https://accounts.google.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+  res.setHeader("Content-Security-Policy", csp);
+
   next();
 });
 
@@ -33,36 +54,46 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
-// CORS configuration
+// CORS
 const defaultOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5174",
 ];
-const envOrigins = process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim()) : [];
+const envOrigins = config.clientOrigin
+  ? config.clientOrigin.split(",").map((o) => o.trim())
+  : [];
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow no-origin requests (mobile, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow any localhost port in development
+    if (config.nodeEnv !== "production" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
     return callback(null, false);
   },
   credentials: true,
+  exposedHeaders: ["X-CSRF-Token"],
 };
-
 app.use(cors(corsOptions));
 
-// Health check endpoint
+// CSRF
+app.use(setCsrfCookie);
+app.use(csrfProtection);
+
+// Health check
 app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// CSRF token endpoint (lets the frontend bootstrap its token)
+app.get("/api/v1/user/csrf-token", (req, res) => {
+  const token = req.csrfToken || req.cookies?.["csrf_token"];
+  return res.status(200).json({ success: true, csrfToken: token });
 });
 
 // API Routes
@@ -72,18 +103,24 @@ app.use("/api/v1/job", jobRoute);
 app.use("/api/v1/application", applicationRoute);
 app.use("/api/v1/external-jobs", externalJobRoute);
 app.use("/api/jobs", externalJobRoute);
+app.use("/api/v1/saved-jobs", savedJobRoute);
 
-// Centralized error handling middleware (must be registered last)
+// 404 catch-all for /api (must be after all valid routes)
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// Centralized error handler (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 8000;
-
-// Start server if not running inside a test runner
+// Start server
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, async () => {
+  app.listen(config.port, async () => {
     await connectDB();
-    console.log(`Server running at port ${PORT}`);
-    // Start external job sync loop if configured
+    console.log(`Server running at port ${config.port} [${config.nodeEnv}]`);
     if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
       scheduleSyncLoop();
     }

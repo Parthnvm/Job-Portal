@@ -66,6 +66,8 @@ export const searchExternalJobs = async (req, res) => {
         source_url: j.externalUrl || j.source_url,
         posted_date: j.postedAt || j.posted_date,
         fetched_at: j.importedAt || j.fetched_at,
+        refreshedAt: j.refreshedAt || j.refreshed_at || new Date(),
+        refreshed_at: j.refreshedAt || j.refreshed_at || new Date(),
         job_type: j.jobType || j.job_type,
         salary_min: j.salaryMin || j.salary_min,
         salary_max: j.salaryMax || j.salary_max,
@@ -73,9 +75,17 @@ export const searchExternalJobs = async (req, res) => {
       };
     });
 
+    // Requirement 1 & 7: Sort newest / recently posted jobs first
+    formattedJobs.sort((a, b) => {
+      const timeA = a.postedAt ? new Date(a.postedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.postedAt ? new Date(b.postedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+
     return res.status(200).json({
       success: true,
       jobs: formattedJobs,
+      refreshedAt: new Date().toISOString(),
       pagination: {
         total: result.total || formattedJobs.length,
         page: pageNum,

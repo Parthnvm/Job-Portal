@@ -7,6 +7,7 @@ import { JobPortalApplicantView } from "./JobPortalApplicantView";
 import { JobPortalRecruiterView } from "./JobPortalRecruiterView";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import API from "./services/api";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function AppContent() {
   const { T } = useTheme();
@@ -81,7 +82,7 @@ function AppContent() {
 
   const handleSignOut = async () => {
     try {
-      await API.get("/user/logout");
+      await API.post("/user/logout").catch(() => API.get("/user/logout"));
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -229,7 +230,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

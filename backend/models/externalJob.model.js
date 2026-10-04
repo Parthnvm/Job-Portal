@@ -82,6 +82,10 @@ const externalJobSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    refreshedAt: {
+      type: Date,
+      default: Date.now,
+    },
     // TTL: MongoDB will auto-delete documents 60 days after expiresAt
     expiresAt: {
       type: Date,
@@ -124,6 +128,10 @@ externalJobSchema.virtual("fetched_at").get(function () {
   return this.importedAt;
 });
 
+externalJobSchema.virtual("refreshed_at").get(function () {
+  return this.refreshedAt;
+});
+
 externalJobSchema.virtual("job_type").get(function () {
   return this.jobType;
 });
@@ -151,10 +159,12 @@ externalJobSchema.index({ provider: 1, externalId: 1 }, { unique: true });
 // ─── TTL index: auto-remove expired jobs ─────────────────────────────────────
 externalJobSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// ─── Search index: fast keyword + location queries ───────────────────────────
+// ─── Search and sorting indexes: fast keyword, recency, location queries ──────
 externalJobSchema.index({ title: "text", description: "text", companyName: "text" });
 externalJobSchema.index({ location: 1 });
 externalJobSchema.index({ category: 1 });
+externalJobSchema.index({ postedAt: -1 });
 externalJobSchema.index({ importedAt: -1 });
+externalJobSchema.index({ refreshedAt: -1 });
 
 export const ExternalJob = mongoose.model("ExternalJob", externalJobSchema);

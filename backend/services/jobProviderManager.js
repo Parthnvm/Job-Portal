@@ -178,6 +178,9 @@ export class JobProviderManager {
               salaryDisplay: job.salaryDisplay,
               postedAt: job.postedAt,
               expiresAt: job.expiresAt,
+              refreshedAt: new Date(),
+            },
+            $setOnInsert: {
               importedAt: new Date(),
             },
           };
@@ -220,8 +223,10 @@ export class JobProviderManager {
         }
       }
 
-      // Fetch freshly stored jobs from DB to return complete Mongoose documents
-      const jobsToReturn = await ExternalJob.find({ _id: { $in: upsertedJobIds } }).lean();
+      // Fetch freshly stored jobs from DB sorted by publication date
+      const jobsToReturn = await ExternalJob.find({ _id: { $in: upsertedJobIds } })
+        .sort({ postedAt: -1, importedAt: -1 })
+        .lean();
       return {
         jobs: jobsToReturn,
         total: jobsToReturn.length,
@@ -250,7 +255,7 @@ export class JobProviderManager {
 
     const skip = (pageNum - 1) * limitNum;
     const [fallbackJobs, totalCount] = await Promise.all([
-      ExternalJob.find(dbFilter).sort({ importedAt: -1 }).skip(skip).limit(limitNum).lean(),
+      ExternalJob.find(dbFilter).sort({ postedAt: -1, importedAt: -1 }).skip(skip).limit(limitNum).lean(),
       ExternalJob.countDocuments(dbFilter),
     ]);
 

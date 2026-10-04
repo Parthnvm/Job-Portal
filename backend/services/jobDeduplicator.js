@@ -80,14 +80,15 @@ export function deduplicateJobs(jobs = []) {
     if (!job) continue;
 
     const provider = (job.provider || job.source || "").toLowerCase();
-    const externalId = String(job.externalId || job.external_id || "");
+    const id = String(job._id || job.id || "");
+    const externalId = String(job.externalId || job.external_id || id);
 
     // 1. Provider-level uniqueness
-    const providerKey = `${provider}:${externalId}`;
-    if (provider && externalId && seenProviderIds.has(providerKey)) {
-      continue;
-    }
-    if (providerKey) {
+    if (provider && externalId) {
+      const providerKey = `${provider}:${externalId}`;
+      if (seenProviderIds.has(providerKey)) {
+        continue;
+      }
       seenProviderIds.add(providerKey);
     }
 
@@ -99,8 +100,9 @@ export function deduplicateJobs(jobs = []) {
     }
 
     // 3. Conservative cross-provider fingerprint
+    const compName = job.companyName || (typeof job.company === "object" ? job.company?.name : job.company) || "";
     const normTitle = normalizeText(job.title);
-    const normComp = normalizeCompany(job.companyName || job.company);
+    const normComp = normalizeCompany(compName);
     const normLoc = normalizeText(job.location);
 
     if (normTitle && normComp && normLoc) {

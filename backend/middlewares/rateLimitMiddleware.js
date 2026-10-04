@@ -1,22 +1,17 @@
 /**
- * In-memory sliding-window rate limiter middleware for sensitive endpoints.
- * Requires no external cache dependency (Redis-free).
- *
- * @param {Object} options
- * @param {number} options.windowMs - Time window in milliseconds (default: 60,000 = 1 min)
- * @param {number} options.max - Max requests per IP in the window (default: 10)
- * @param {string} options.message - Error message upon limit breach
+ * In-memory sliding-window rate limiter (Redis-free).
+ * @param {number} options.windowMs - Window duration in ms (default: 60 000)
+ * @param {number} options.max - Max requests per IP per window (default: 15)
+ * @param {string} options.message - Response message on limit breach
  */
 export const rateLimit = ({ windowMs = 60 * 1000, max = 15, message = "Too many requests. Please try again later." } = {}) => {
   const hits = new Map();
 
-  // Periodic cleanup of expired buckets every 5 minutes
+  // Purge expired buckets every 5 minutes
   setInterval(() => {
     const now = Date.now();
     for (const [ip, record] of hits.entries()) {
-      if (now - record.startTime > windowMs * 2) {
-        hits.delete(ip);
-      }
+      if (now - record.startTime > windowMs * 2) hits.delete(ip);
     }
   }, 5 * 60 * 1000).unref();
 
@@ -41,11 +36,7 @@ export const rateLimit = ({ windowMs = 60 * 1000, max = 15, message = "Too many 
     if (record.count > max) {
       const retryAfterSeconds = Math.ceil((record.startTime + windowMs - now) / 1000);
       res.setHeader("Retry-After", retryAfterSeconds);
-      return res.status(429).json({
-        success: false,
-        message,
-        retryAfterSeconds,
-      });
+      return res.status(429).json({ success: false, message, retryAfterSeconds });
     }
 
     return next();

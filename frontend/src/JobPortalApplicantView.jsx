@@ -1,5 +1,5 @@
 "use strict";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGoogleLogin } from "@react-oauth/google";
 import {
@@ -12,11 +12,21 @@ import {
   ArrowRight,
   Bell,
   Bookmark,
-  Share2
+  Share2,
+  RotateCw,
+  FileText,
+  AlertTriangle,
+  UploadCloud,
+  Download,
+  ExternalLink
 } from "lucide-react";
 import { Button, Input, GlassCard, getRelativeTime } from "./JobPortal";
 import { ResumeAnalyzerView } from "./JobPortalResumeAnalyzer";
 import { formatSalaryDisplay, getJobNumericSalary } from "./utils/currency";
+import { deduplicateFrontendJobs, mergeAndDeduplicateJobs } from "./utils/jobDeduplicator";
+import { STATIC_DEMO_JOBS } from "./utils/demoJobs";
+import { calculateATSScore, extractJobSkills, extractUserSkills } from "./utils/atsMatcher";
+import { formatRelativeTime } from "./utils/dateParser";
 import API from "./services/api";
 import { useTheme, ThemeToggle, T } from "./context/ThemeContext";
 
@@ -156,6 +166,129 @@ function ProfileView({
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Resume Management State
+  const [resumeActionLoading, setResumeActionLoading] = useState(false);
+  const [resumeSuccessMsg, setResumeSuccessMsg] = useState("");
+  const [resumeErrorMsg, setResumeErrorMsg] = useState("");
+  const resumeInputRef = useRef(null);
+
+  const resumeMetadata = savedUser.profile?.resumeMetadata;
+  const hasResume = Boolean(resumeMetadata?.fileId || savedUser.profile?.resume);
+  const resumeName = resumeMetadata?.originalName || savedUser.profile?.resumeOriginalName || (savedUser.profile?.resume ? "Resume.pdf" : "");
+  const resumeUploadDate = resumeMetadata?.uploadedAt
+    ? new Date(resumeMetadata.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : (savedUser.updatedAt ? new Date(savedUser.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recently");
+  const resumeSizeStr = resumeMetadata?.size
+    ? (resumeMetadata.size > 1024 * 1024
+      ? `${(resumeMetadata.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.round(resumeMetadata.size / 1024)} KB`)
+    : "";
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setResumeErrorMsg("");
+    setResumeSuccessMsg("");
+
+    const ext = file.name ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase() : "";
+    const allowed = [".pdf", ".doc", ".docx", ".txt"];
+    if (ext && !allowed.includes(ext)) {
+      setResumeErrorMsg("Resume must be a PDF or DOCX file (PDF, DOC, DOCX, or TXT).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setResumeErrorMsg("Resume is too large. Maximum allowed size is 5 MB.");
+      return;
+    }
+    if (file.size === 0) {
+      setResumeErrorMsg("The selected resume file is empty.");
+      return;
+    }
+
+    setResumeActionLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("resume", file);
+      const res = await API.post("/user/profile/resume", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data?.success) {
+        setResumeSuccessMsg("Resume uploaded successfully!");
+        onUserUpdate(res.data.user);
+        setTimeout(() => setResumeSuccessMsg(""), 3500);
+      } else {
+        throw new Error(res.data?.message || "Failed to upload resume.");
+      }
+    } catch (err) {
+      console.error(err);
+      setResumeErrorMsg(err.response?.data?.message || err.message || "Failed to upload resume.");
+    } finally {
+      setResumeActionLoading(false);
+    }
+  };
+
+  const handleDeleteResume = async () => {
+    if (!window.confirm("Are you sure you want to remove your resume? You will not be able to apply to jobs until you upload a new one.")) {
+      return;
+    }
+    setResumeActionLoading(true);
+    setResumeErrorMsg("");
+    setResumeSuccessMsg("");
+    try {
+      const res = await API.delete("/user/profile/resume");
+      if (res.data?.success) {
+        setResumeSuccessMsg("Resume removed from profile.");
+        onUserUpdate(res.data.user);
+        setTimeout(() => setResumeSuccessMsg(""), 3500);
+      } else {
+        throw new Error(res.data?.message || "Failed to remove resume.");
+      }
+    } catch (err) {
+      console.error(err);
+      setResumeErrorMsg(err.response?.data?.message || err.message || "Failed to remove resume.");
+    } finally {
+      setResumeActionLoading(false);
+    }
+  };
+
+  const handleViewResume = async () => {
+    setResumeActionLoading(true);
+    try {
+      const res = await API.get("/user/profile/resume", { responseType: "blob" });
+      const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (err) {
+      console.error(err);
+      setResumeErrorMsg(err.response?.data?.message || "Failed to load resume.");
+    } finally {
+      setResumeActionLoading(false);
+    }
+  };
+
+  const handleDownloadResume = async () => {
+    setResumeActionLoading(true);
+    try {
+      const res = await API.get("/user/profile/resume?download=true", { responseType: "blob" });
+      const blob = new Blob([res.data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = resumeName || "resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setResumeErrorMsg(err.response?.data?.message || "Failed to download resume.");
+    } finally {
+      setResumeActionLoading(false);
+    }
+  };
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -315,6 +448,121 @@ function ProfileView({
         </form>
       </GlassCard>
 
+      {/* ─── Resume Management Section (Job Seekers Only) ──────────────── */}
+      <GlassCard style={{ padding: 32, marginTop: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <h3 style={{ fontSize: "1.2rem", color: T.text, margin: "0 0 6px", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              <FileText size={18} color={T.purpleL} /> Resume Management
+            </h3>
+            <p style={{ color: T.textMid, fontSize: "0.82rem", margin: 0 }}>
+              Your resume is required to apply for jobs and powers your automated ATS skills matching.
+            </p>
+          </div>
+          <span style={{
+            padding: "4px 10px",
+            borderRadius: 12,
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            background: hasResume ? T.greenDim : "rgba(239,68,68,0.12)",
+            color: hasResume ? T.green : "#ef4444",
+            border: `1px solid ${hasResume ? T.green + "40" : "rgba(239,68,68,0.25)"}`
+          }}>
+            {hasResume ? "✓ Active Resume" : "No Resume Uploaded"}
+          </span>
+        </div>
+
+        {resumeSuccessMsg && (
+          <div style={{ color: T.green, background: T.greenDim, border: `1px solid ${T.green}40`, padding: "10px 14px", borderRadius: 10, fontSize: "0.85rem", marginBottom: 16 }}>
+            {resumeSuccessMsg}
+          </div>
+        )}
+        {resumeErrorMsg && (
+          <div style={{ color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.20)", padding: "10px 14px", borderRadius: 10, fontSize: "0.85rem", marginBottom: 16 }}>
+            {resumeErrorMsg}
+          </div>
+        )}
+
+        {hasResume ? (
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: T.purpleDim, border: `1px solid ${T.purpleL}40`, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL, flexShrink: 0 }}>
+                  <FileText size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 600, color: T.text, wordBreak: "break-all" }}>
+                    {resumeName}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: T.textDim, marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <span>Uploaded: {resumeUploadDate}</span>
+                    {resumeSizeStr && <span>• Size: {resumeSizeStr}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <Button size="sm" variant="outline" onClick={handleViewResume} disabled={resumeActionLoading}>
+                  View Resume
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleDownloadResume} disabled={resumeActionLoading}>
+                  Download
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => resumeInputRef.current?.click()} disabled={resumeActionLoading}>
+                  Replace Resume
+                </Button>
+                <button
+                  onClick={handleDeleteResume}
+                  disabled={resumeActionLoading}
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "#ef4444",
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    borderRadius: 8,
+                    cursor: resumeActionLoading ? "not-allowed" : "pointer",
+                    padding: "7px 12px",
+                    fontFamily: T.font,
+                    fontWeight: 600,
+                    transition: "all 0.18s"
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.18)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: T.surface, border: `1px dashed ${T.border}`, borderRadius: 12, padding: "32px 24px", textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", margin: "0 auto 12px" }}>
+              <AlertTriangle size={22} />
+            </div>
+            <h4 style={{ fontSize: "1rem", color: T.text, margin: "0 0 6px", fontWeight: 600 }}>No resume uploaded yet</h4>
+            <p style={{ color: T.textMid, fontSize: "0.85rem", maxWidth: 440, margin: "0 auto 18px", lineHeight: 1.5 }}>
+              You need to upload a resume before applying for jobs. Supported formats: PDF, DOC, DOCX, TXT (up to 5MB).
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => resumeInputRef.current?.click()}
+              disabled={resumeActionLoading}
+              icon={<UploadCloud size={16} />}
+            >
+              {resumeActionLoading ? "Uploading..." : "Upload Resume"}
+            </Button>
+          </div>
+        )}
+
+        <input
+          ref={resumeInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          onChange={handleFileSelected}
+          style={{ display: "none" }}
+        />
+      </GlassCard>
+
       <GlassCard style={{ padding: 32, marginTop: 24 }}>
         <h3 style={{ fontSize: "1.1rem", color: T.text, margin: "0 0 8px", fontWeight: 600 }}>Linked Accounts</h3>
         <p style={{ color: T.textMid, fontSize: "0.82rem", margin: "0 0 20px" }}>
@@ -366,12 +614,14 @@ function ProfileView({
 export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobConsumed }) {
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState("Browse Jobs");
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState(() => mergeAndDeduplicateJobs([], [], STATIC_DEMO_JOBS));
   const [applications, setApplications] = useState([]);
   const [savedIds, setSavedIds] = useState(/* @__PURE__ */ new Set());
   const [activeJobId, setActiveJobId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applySuccess, setApplySuccess] = useState(null);
   const [userVer, setUserVer] = useState(0);
@@ -380,35 +630,90 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   const jobsPerPage = 10;
   const [linkError, setLinkError] = useState("");
   const [linkSuccess, setLinkSuccess] = useState("");
+  const [resumeAnalysis, setResumeAnalysis] = useState(null);
+  const abortControllerRef = useRef(null);
+
   const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = savedUser._id || "";
   const userName = savedUser.fullname || "Candidate";
-  const userSkills = (savedUser.profile?.skills || []).map((s) => s.toLowerCase().trim()).filter((s) => s.length > 0);
-  const fetchJobs = async () => {
-    setLoading(true);
-    try {
-      const res = await API.get("/job/get");
-      if (res.data.success) {
-        setJobs(res.data.jobs);
-        // If we have a pending job from pre-auth click, select it; otherwise select first
-        if (initialJobId) {
-          const match = res.data.jobs.find((j) => j._id === initialJobId);
-          if (match) {
-            setActiveJobId(match._id);
-          } else if (res.data.jobs.length > 0) {
-            setActiveJobId(res.data.jobs[0]._id);
-          }
-          onJobConsumed?.();
-        } else if (res.data.jobs.length > 0) {
-          setActiveJobId(res.data.jobs[0]._id);
+  const hasResume = Boolean(savedUser.profile?.resumeMetadata?.fileId || savedUser.profile?.resume);
+
+  // Fetch latest AI Resume Analysis on mount or user update
+  useEffect(() => {
+    let isMounted = true;
+    async function loadResumeAnalysis() {
+      try {
+        const res = await API.get("/user/resume-analysis/latest");
+        if (isMounted && res.data?.success && res.data?.analysis) {
+          setResumeAnalysis(res.data.analysis);
         }
+      } catch {
+        // silent if no analysis or unauthenticated
+      }
+    }
+    loadResumeAnalysis();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, userVer]);
+
+  // Authoritative user skills: profile skills + AI resume extracted skills
+  const combinedUserSkills = useMemo(() => {
+    return extractUserSkills(savedUser, resumeAnalysis);
+  }, [savedUser, resumeAnalysis, userVer]);
+
+  const fetchJobs = async (isManualRefresh = false) => {
+    if (!isManualRefresh && jobs.length === 0) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const endpoint = isManualRefresh ? "/job/get?refresh=true" : "/job/get";
+      const res = await API.get(endpoint, { signal: abortControllerRef.current.signal });
+      if (res.data?.success && Array.isArray(res.data.jobs)) {
+        setJobs((prevJobs) => {
+          const merged = mergeAndDeduplicateJobs(prevJobs, res.data.jobs, STATIC_DEMO_JOBS);
+
+          // Retain or select active job
+          if (initialJobId) {
+            const match = merged.find((j) => (j._id || j.id) === initialJobId);
+            if (match) {
+              setActiveJobId(match._id || match.id);
+            } else if (merged.length > 0 && !activeJobId) {
+              setActiveJobId(merged[0]._id || merged[0].id);
+            }
+            onJobConsumed?.();
+          } else if (!activeJobId && merged.length > 0) {
+            setActiveJobId(merged[0]._id || merged[0].id);
+          } else if (activeJobId) {
+            const stillExists = merged.some((j) => (j._id || j.id) === activeJobId);
+            if (!stillExists && merged.length > 0) {
+              setActiveJobId(merged[0]._id || merged[0].id);
+            }
+          }
+
+          return merged;
+        });
+        setLastRefreshed(new Date());
       }
     } catch (err) {
-      console.error(err);
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+        return;
+      }
+      console.error("Error fetching jobs in applicant view:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
   const fetchApplications = async () => {
     try {
       const res = await API.get("/application/get");
@@ -419,16 +724,30 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
       console.error(err);
     }
   };
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, activeTab, selectedFilters]);
+
   useEffect(() => {
     fetchJobs();
     fetchApplications();
-    const saved = localStorage.getItem(`saved_jobs_${userId}`);
-    if (saved) {
-      setSavedIds(new Set(JSON.parse(saved)));
-    }
+    // Fetch user's saved job IDs from backend (Fix #25)
+    API.get("/saved-jobs/ids")
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.savedJobIds)) {
+          setSavedIds(new Set(res.data.savedJobIds));
+          localStorage.setItem(`saved_jobs_${userId}`, JSON.stringify(res.data.savedJobIds));
+        }
+      })
+      .catch(() => {
+        const saved = localStorage.getItem(`saved_jobs_${userId}`);
+        if (saved) {
+          try {
+            setSavedIds(new Set(JSON.parse(saved)));
+          } catch {}
+        }
+      });
     const params = new URLSearchParams(window.location.search);
     const linkStatus = params.get("link");
     const errorStatus = params.get("error");
@@ -452,20 +771,106 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
       setActiveTab("My Profile");
       setLinkError("This GitHub account is already connected to another user profile.");
     }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [userId]);
+
+  // Load saved jobs from backend whenever the user switches to the "Saved" tab (Fix #25)
+  useEffect(() => {
+    if (activeTab === "Saved") {
+      API.get("/saved-jobs")
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data.jobs)) {
+            setJobs((prevJobs) => mergeAndDeduplicateJobs(prevJobs, res.data.jobs, STATIC_DEMO_JOBS));
+            const newIds = res.data.jobs.map((j) => j._id || j.id);
+            setSavedIds((prev) => new Set([...prev, ...newIds]));
+          }
+        })
+        .catch((err) => console.warn("[fetchSavedJobs error]:", err.message));
+    }
+  }, [activeTab]);
+
+  // Background auto-refresh (every 5 minutes or configured interval) & on window refocus
+  useEffect(() => {
+    const refreshIntervalMs = Number(import.meta.env.VITE_AUTO_REFRESH_INTERVAL_MS) || 300000;
+    const intervalTimer = setInterval(() => {
+      fetchJobs(true);
+    }, refreshIntervalMs);
+
+    const handleFocus = () => {
+      if (lastRefreshed && Date.now() - new Date(lastRefreshed).getTime() > 120000) {
+        fetchJobs(true);
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalTimer);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [lastRefreshed]);
+
+  const handleViewAppResume = async (appId) => {
+    try {
+      const res = await API.get(`/application/${appId}/resume`, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to view submitted resume.");
+    }
+  };
+
+  const handleDownloadAppResume = async (appId, filename) => {
+    try {
+      const res = await API.get(`/application/${appId}/resume?download=true`, { responseType: "blob" });
+      const blob = new Blob([res.data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || "resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to download submitted resume.");
+    }
+  };
+
   const handleApply = async (jobId) => {
-    const job = jobs.find((j) => j._id === jobId || j.id === jobId);
+    const job = jobs.find((j) => (j._id || j.id) === jobId);
     if (job?.isExternal && (job.externalUrl || job.apply_url)) {
       window.open(job.externalUrl || job.apply_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (job?.isDemo) {
+      setApplyLoading(true);
+      setApplySuccess(null);
+      setTimeout(() => {
+        setApplySuccess("Application submitted successfully for this demo position!");
+        setApplyLoading(false);
+      }, 400);
+      return;
+    }
+    if (!hasResume) {
+      setApplySuccess("Resume required. Please upload your resume in My Profile before applying.");
+      setActiveTab("My Profile");
       return;
     }
     setApplyLoading(true);
     setApplySuccess(null);
     try {
-      const res = await API.get(`/application/apply/${jobId}`);
-      if (res.data.success) {
+      const res = await API.post(`/application/apply/${jobId}`);
+      if (res.data?.success) {
         setApplySuccess("Successfully applied to this position!");
         fetchApplications();
+      } else {
+        setApplySuccess(res.data?.message || "Failed to submit application.");
       }
     } catch (err) {
       console.error(err);
@@ -474,16 +879,38 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
       setApplyLoading(false);
     }
   };
-  const handleToggleSave = (jobId) => {
+
+  const handleToggleSave = async (jobId) => {
+    const targetJob = jobs.find((j) => (j._id || j.id) === jobId);
+    const isCurrentlySaved = savedIds.has(jobId);
     const nextSaved = new Set(savedIds);
-    if (nextSaved.has(jobId)) {
+
+    // Optimistic UI update
+    if (isCurrentlySaved) {
       nextSaved.delete(jobId);
     } else {
       nextSaved.add(jobId);
     }
     setSavedIds(nextSaved);
     localStorage.setItem(`saved_jobs_${userId}`, JSON.stringify(Array.from(nextSaved)));
+
+    try {
+      if (isCurrentlySaved) {
+        await API.post("/saved-jobs/unsave", {
+          jobId,
+          isExternal: Boolean(targetJob?.isExternal),
+        });
+      } else {
+        await API.post("/saved-jobs/save", {
+          jobId,
+          isExternal: Boolean(targetJob?.isExternal),
+        });
+      }
+    } catch (saveErr) {
+      console.warn("[SavedJobs sync error]:", saveErr.message);
+    }
   };
+
   const handleToggleFilter = (filter) => {
     const nextFilters = new Set(selectedFilters);
     if (nextFilters.has(filter)) {
@@ -493,58 +920,66 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     }
     setSelectedFilters(nextFilters);
   };
+
   const displayedJobs = jobs.filter((job) => {
-    const matchSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || (job.company?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchSearch) return false;
+    const titleStr = (job.title || "").toLowerCase();
+    const compName = (job.company?.name || (typeof job.company === "string" ? job.company : "") || job.companyName || "").toLowerCase();
+    const locStr = (job.location || "").toLowerCase();
+    const descStr = (job.description || "").toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
+    if (q) {
+      const matchSearch = titleStr.includes(q) || compName.includes(q) || locStr.includes(q) || descStr.includes(q);
+      if (!matchSearch) return false;
+    }
+
     if (selectedFilters.size > 0) {
       let matchesFilter = true;
       selectedFilters.forEach((f) => {
-        if (f === "Remote" && !job.location.toLowerCase().includes("remote")) matchesFilter = false;
-        if (f === "Engineering" && !job.title.toLowerCase().includes("engineer") && !job.title.toLowerCase().includes("developer") && !job.title.toLowerCase().includes("frontend") && !job.title.toLowerCase().includes("backend")) matchesFilter = false;
-        if (f === "Full-time" && job.jobType !== "Full-time") matchesFilter = false;
-        if (f === "₹10L+" && getJobNumericSalary(job) < 1000000) matchesFilter = false;
-        if (f === "₹20L+" && getJobNumericSalary(job) < 2000000) matchesFilter = false;
+        if (f === "Remote") {
+          const isRem = job.isRemote || locStr.includes("remote");
+          if (!isRem) matchesFilter = false;
+        }
+        if (f === "Engineering") {
+          const isEng = /(engineer|developer|frontend|backend|fullstack|software|architect|devops|data|sre|programmer|coder)/i.test(titleStr) ||
+            (job.category || "").toLowerCase().includes("engineer");
+          if (!isEng) matchesFilter = false;
+        }
+        if (f === "Full-time") {
+          const jt = (job.jobType || job.type || "").toLowerCase();
+          if (!jt.includes("full")) matchesFilter = false;
+        }
+        if (f === "₹10L+") {
+          if (getJobNumericSalary(job) < 1000000) matchesFilter = false;
+        }
+        if (f === "₹20L+") {
+          if (getJobNumericSalary(job) < 2000000) matchesFilter = false;
+        }
       });
       if (!matchesFilter) return false;
     }
+
     if (activeTab === "Saved") {
-      return savedIds.has(job._id);
+      return savedIds.has(job._id || job.id);
     }
     return true;
   });
+
   const totalPages = Math.ceil(displayedJobs.length / jobsPerPage);
   const startIndex = (currentPage - 1) * jobsPerPage;
   const paginatedJobs = displayedJobs.slice(startIndex, startIndex + jobsPerPage);
   const formatSal = (sal, item = null) => {
     return formatSalaryDisplay(item?.salaryDisplay || sal, item);
   };
-  const getMatchScore = (jobId, jobReqs) => {
-    if (!jobReqs || jobReqs.length === 0) return 0;
-    if (userSkills.length === 0) return 0;
-    const cleanReqs = jobReqs.map((r) => r.toLowerCase().trim());
-    const matchCount = cleanReqs.filter(
-      (req) => userSkills.some((skill) => skill.toLowerCase().trim().includes(req) || req.includes(skill.toLowerCase().trim()))
-    ).length;
-    return Math.round(matchCount / cleanReqs.length * 100);
+  const activeJob = jobs.find((j) => (j._id || j.id) === activeJobId) || jobs[0];
+  const activeJobSkills = useMemo(() => extractJobSkills(activeJob), [activeJob]);
+  const activeAts = useMemo(() => calculateATSScore(combinedUserSkills, activeJobSkills, hasResume), [combinedUserSkills, activeJobSkills, hasResume]);
+
+  const getJobCardAts = (job) => {
+    const skills = extractJobSkills(job);
+    return calculateATSScore(combinedUserSkills, skills, hasResume);
   };
-  const getMatchDetails = (jobReqs) => {
-    if (!jobReqs || jobReqs.length === 0) return { matched: [], missing: [] };
-    const cleanReqs = jobReqs.map((r) => r.trim());
-    const matched = [];
-    const missing = [];
-    cleanReqs.forEach((req) => {
-      const isMatch = userSkills.some(
-        (skill) => skill.includes(req.toLowerCase()) || req.toLowerCase().includes(skill)
-      );
-      if (isMatch) {
-        matched.push(req);
-      } else {
-        missing.push(req);
-      }
-    });
-    return { matched, missing };
-  };
-  const activeJob = jobs.find((j) => j._id === activeJobId);
+
   const hasAppliedToActiveJob = activeJob && applications.some((app) => app.job?._id === activeJob._id || app.job === activeJob._id);
   const isJobsTab = activeTab === "Browse Jobs" || activeTab === "Saved";
 
@@ -693,6 +1128,27 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                             </span>
                           </div>
                         </div>
+
+                        {/* Submitted Resume Snapshot */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "16px 0 0 60px", borderTop: `1px solid ${T.border}`, paddingTop: 14, flexWrap: "wrap", gap: 12 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.82rem", color: T.textMid }}>
+                            <FileText size={16} color={T.purpleL} />
+                            <span>Submitted Resume: <strong style={{ color: T.text }}>{app.resume?.originalName || (app.applicant?.profile?.resumeOriginalName || "Resume.pdf")}</strong></span>
+                            {app.atsScore !== undefined && app.atsScore !== null && (
+                              <span style={{ fontSize: "0.72rem", background: T.greenDim, color: T.green, padding: "2px 8px", borderRadius: 8, fontWeight: 700, border: `1px solid ${T.green}30`, marginLeft: 8 }}>
+                                ATS Match: {app.atsScore}%
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <Button size="sm" variant="outline" onClick={() => handleViewAppResume(app._id)}>
+                              View Resume
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDownloadAppResume(app._id, app.resume?.originalName)}>
+                              Download
+                            </Button>
+                          </div>
+                        </div>
                       </GlassCard>;
     })}
                 </div>}
@@ -706,17 +1162,49 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     }
               <div className="jobs-left-panel" style={{ flex: "0 0 40%", minWidth: 380, display: "flex", flexDirection: "column", height: "100%", minHeight: 0, borderRight: `1px solid ${T.border}`, background: isDark ? "rgba(9,9,15,0.6)" : "#f8fafc", overflowY: "auto" }}>
                 <div style={{ padding: "24px 24px 16px", borderBottom: `1px solid ${T.border}`, background: T.bg, flexShrink: 0, position: "sticky", top: 0, zIndex: 10 }}>
-                  <h1 style={{ fontSize: "1.4rem", fontFamily: T.serif, color: T.text, margin: "0 0 16px" }}>
-                    {activeTab === "Saved" ? "Your Saved Jobs" : "Recommended for you"}
-                  </h1>
-                  <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <h1 style={{ fontSize: "1.4rem", fontFamily: T.serif, color: T.text, margin: 0 }}>
+                      {activeTab === "Saved" ? "Your Saved Jobs" : "Recommended for you"}
+                    </h1>
+                    {lastRefreshed && (
+                      <span style={{ fontSize: "0.72rem", color: T.textDim }}>
+                        Updated {formatRelativeTime(lastRefreshed, "just now")}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center" }}>
                     <Input
-      icon={<Search size={15} />}
-      placeholder="Search jobs..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      wrapStyle={{ flex: 1 }}
-    />
+                      icon={<Search size={15} />}
+                      placeholder="Search jobs..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      wrapStyle={{ flex: 1 }}
+                    />
+                    <button
+                      onClick={() => fetchJobs(true)}
+                      disabled={refreshing}
+                      title="Refresh job listings"
+                      style={{
+                        height: 42,
+                        padding: "0 14px",
+                        background: refreshing ? T.surfaceHov : T.surface,
+                        border: `1px solid ${T.purpleL}44`,
+                        borderRadius: 10,
+                        color: T.purpleL,
+                        cursor: refreshing ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        fontFamily: T.font,
+                        flexShrink: 0,
+                        transition: "all 0.18s"
+                      }}
+                    >
+                      <RotateCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+                      <span className="hidden sm:inline">{refreshing ? "Refreshing..." : "Refresh"}</span>
+                    </button>
                   </div>
                   <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
                     {["Remote", "Engineering", "Full-time", "₹10L+", "₹20L+"].map((f) => {
@@ -757,16 +1245,15 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                     <p style={{ marginTop: 10 }}>No jobs found.</p>
                   </div> : <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
                     {paginatedJobs.map((job) => {
-      const active = job._id === activeJobId;
+      const active = (job._id || job.id) === (activeJob?._id || activeJob?.id);
       const compName = job.company?.name || job.companyName || "Company";
       const initials = compName.slice(0, 2).toUpperCase();
-      const isSaved = savedIds.has(job._id);
-      const jobReqs = job.requirements || job.skills || [];
-      const matchScore = getMatchScore(job._id, jobReqs);
-      const providerLabel = job.isExternal ? (job.provider === "jooble" ? "Jooble" : "Adzuna") : null;
+      const isSaved = savedIds.has(job._id || job.id);
+      const cardAts = getJobCardAts(job);
+      const relTime = formatRelativeTime(job.postedAt || job.posted_date || job.createdAt, "Recently posted");
       return <div
-        key={job._id}
-        onClick={() => setActiveJobId(job._id)}
+        key={job._id || job.id}
+        onClick={() => setActiveJobId(job._id || job.id)}
         style={{
           background: active ? (isDark ? T.purpleDim : "rgba(124,106,247,0.12)") : (isDark ? T.surface : "#ffffff"),
           border: `1px solid ${active ? T.purpleL + (isDark ? "55" : "88") : T.border}`,
@@ -790,11 +1277,23 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                               </div>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                              {providerLabel && <span style={{ fontSize: "0.6rem", fontWeight: 700, color: T.purpleL, background: T.purpleDim, padding: "2px 6px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{providerLabel}</span>}
+                              {job.isExternal ? (
+                                <span style={{ fontSize: "0.6rem", fontWeight: 700, color: T.purpleL, background: T.purpleDim, padding: "2px 6px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                                  {job.provider === "jooble" ? "Jooble" : (job.provider === "adzuna" ? "Adzuna" : job.provider || "Partner")}
+                                </span>
+                              ) : job.isDemo ? (
+                                <span style={{ fontSize: "0.6rem", fontWeight: 700, color: T.orange, background: "rgba(251,146,60,0.12)", padding: "2px 6px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                                  Demo
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: "0.6rem", fontWeight: 700, color: T.green, background: T.greenDim, padding: "2px 6px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                                  Direct
+                                </span>
+                              )}
                               <button
         onClick={(e) => {
           e.stopPropagation();
-          handleToggleSave(job._id);
+          handleToggleSave(job._id || job.id);
         }}
         style={{ background: "none", border: "none", color: isSaved ? T.purple : T.textDim, cursor: "pointer", display: "flex", padding: 0 }}
       >
@@ -811,11 +1310,34 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ display: "flex", gap: 6 }}>
                               <Tag>{job.jobType || "Full-time"}</Tag>
-                              <Tag>{getRelativeTime(job.createdAt || job.postedAt)}</Tag>
+                              {relTime && <Tag>{relTime}</Tag>}
                             </div>
-                            <span style={{ fontSize: "0.72rem", fontWeight: 600, color: matchScore >= 80 ? T.green : T.orange, background: matchScore >= 80 ? T.greenDim : T.orange + "20", padding: "3px 8px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              ✨ {matchScore}% Match
-                            </span>
+                            {cardAts.score !== null ? (
+                              <span style={{
+                                fontSize: "0.72rem",
+                                fontWeight: 600,
+                                color: cardAts.score >= 70 ? T.green : (cardAts.score >= 40 ? T.orange : T.textDim),
+                                background: cardAts.score >= 70 ? T.greenDim : (cardAts.score >= 40 ? T.orange + "20" : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)")),
+                                padding: "3px 8px",
+                                borderRadius: 12,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4
+                              }}>
+                                ✨ {cardAts.score}% Match
+                              </span>
+                            ) : (
+                              <span style={{
+                                fontSize: "0.68rem",
+                                fontWeight: 500,
+                                color: T.textDim,
+                                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                                padding: "3px 8px",
+                                borderRadius: 12
+                              }}>
+                                ATS Ready
+                              </span>
+                            )}
                           </div>
                         </div>;
     })}
@@ -940,9 +1462,17 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                         {savedIds.has(activeJob._id) ? "Saved" : "Save"}
                       </Button>
                     </div>
-                    {activeJob.isExternal && (
+                    {activeJob.isExternal ? (
                       <div style={{ position: "absolute", top: 20, left: 24, display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: T.purpleDim, border: `1px solid ${T.purpleL}44`, borderRadius: 20 }}>
-                        <span style={{ fontSize: "0.7rem", fontWeight: 700, color: T.purpleL }}>via {activeJob.provider === "jooble" ? "Jooble India" : "Adzuna India"}</span>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 700, color: T.purpleL }}>via {activeJob.provider === "jooble" ? "Jooble India" : (activeJob.provider === "adzuna" ? "Adzuna India" : activeJob.provider || "Partner")}</span>
+                      </div>
+                    ) : activeJob.isDemo ? (
+                      <div style={{ position: "absolute", top: 20, left: 24, display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(251,146,60,0.12)", border: `1px solid ${T.orange}44`, borderRadius: 20 }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 700, color: T.orange }}>Featured Demo Role</span>
+                      </div>
+                    ) : (
+                      <div style={{ position: "absolute", top: 20, left: 24, display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: T.greenDim, border: `1px solid ${T.green}44`, borderRadius: 20 }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 700, color: T.green }}>JobSphere Direct</span>
                       </div>
                     )}
                   </div>
@@ -956,12 +1486,40 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                           <span style={{ color: T.textDim }}>•</span>
                           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{activeJob.location || "India"}</span>
                           <span style={{ color: T.textDim }}>•</span>
-                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} />Posted {getRelativeTime(activeJob.createdAt || activeJob.postedAt)}</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} />Posted {formatRelativeTime(activeJob.postedAt || activeJob.posted_date || activeJob.createdAt, "Recently")}</span>
                         </div>
                       </div>
-                      <span style={{ flexShrink: 0, fontSize: "0.82rem", fontWeight: 600, color: getMatchScore(activeJob._id, activeJob.requirements || activeJob.skills || []) >= 80 ? T.green : T.orange, background: getMatchScore(activeJob._id, activeJob.requirements || activeJob.skills || []) >= 80 ? T.greenDim : T.orange + "20", padding: "5px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${getMatchScore(activeJob._id, activeJob.requirements || activeJob.skills || []) >= 80 ? T.green + "40" : T.orange + "40"}`, whiteSpace: "nowrap" }}>
-                        ✨ {getMatchScore(activeJob._id, activeJob.requirements || activeJob.skills || [])}% Match
-                      </span>
+                      {activeAts.score !== null ? (
+                        <span style={{
+                          flexShrink: 0,
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: activeAts.score >= 70 ? T.green : (activeAts.score >= 40 ? T.orange : T.textDim),
+                          background: activeAts.score >= 70 ? T.greenDim : (activeAts.score >= 40 ? T.orange + "20" : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)")),
+                          padding: "5px 12px",
+                          borderRadius: 20,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          border: `1px solid ${activeAts.score >= 70 ? T.green + "40" : (activeAts.score >= 40 ? T.orange + "40" : T.border)}`,
+                          whiteSpace: "nowrap"
+                        }}>
+                          ✨ {activeAts.score}% Match
+                        </span>
+                      ) : (
+                        <span style={{
+                          flexShrink: 0,
+                          fontSize: "0.82rem",
+                          fontWeight: 500,
+                          color: T.textDim,
+                          background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                          padding: "5px 12px",
+                          borderRadius: 20,
+                          border: `1px solid ${T.border}`
+                        }}>
+                          📊 ATS Analysis
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
@@ -970,52 +1528,115 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                       {(activeJob.requirements || activeJob.skills || []).slice(0, 5).map((t) => <Tag key={t}>{t}</Tag>)}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        iconRight={!applyLoading && <ArrowRight size={16} />}
-                        style={{ padding: "12px 32px" }}
-                        onClick={() => handleApply(activeJob._id)}
-                        disabled={applyLoading || (!activeJob.isExternal && hasAppliedToActiveJob)}
-                      >
-                        {applyLoading
-                          ? "Applying..."
-                          : activeJob.isExternal
-                          ? `Apply on ${activeJob.provider === "jooble" ? "Jooble India" : "Adzuna India"}`
-                          : hasAppliedToActiveJob
-                          ? "Already Applied"
-                          : "Easy Apply"}
-                      </Button>
-                      
-                      {applySuccess && <span style={{ fontSize: "0.9rem", color: applySuccess.includes("Successfully") ? T.green : "#ef4444", fontWeight: 600 }}>
-                          {applySuccess}
-                        </span>}
-                    </div>
+                    {!activeJob.isExternal && !activeJob.isDemo && !hasResume ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <Button
+                            variant="primary"
+                            size="lg"
+                            style={{ padding: "12px 32px", background: "linear-gradient(135deg, #f59e0b, #d97706)" }}
+                            onClick={() => setActiveTab("My Profile")}
+                          >
+                            Upload Resume to Apply
+                          </Button>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#d97706", background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.25)", padding: "10px 14px", borderRadius: 8, fontSize: "0.84rem" }}>
+                          <AlertTriangle size={16} />
+                          <span>Resume required before applying. Please upload your resume in My Profile.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          iconRight={!applyLoading && <ArrowRight size={16} />}
+                          style={{ padding: "12px 32px" }}
+                          onClick={() => handleApply(activeJob._id || activeJob.id)}
+                          disabled={applyLoading || (!activeJob.isExternal && !activeJob.isDemo && hasAppliedToActiveJob)}
+                        >
+                          {applyLoading
+                            ? "Applying..."
+                            : activeJob.isExternal
+                            ? `Apply on ${activeJob.provider === "jooble" ? "Jooble India" : (activeJob.provider === "adzuna" ? "Adzuna India" : activeJob.provider || "External Site")}`
+                            : activeJob.isDemo
+                            ? "Demo Application (Instant)"
+                            : hasAppliedToActiveJob
+                            ? "Already Applied"
+                            : "Easy Apply"}
+                        </Button>
+                        
+                        {applySuccess && <span style={{ fontSize: "0.9rem", color: applySuccess.includes("Successfully") || applySuccess.includes("successfully") ? T.green : "#ef4444", fontWeight: 600 }}>
+                            {applySuccess}
+                          </span>}
+                      </div>
+                    )}
 
-                    {
-      /* ATS Skills Match Analysis */
-    }
+                    {/* ATS Skills Match Analysis */}
                     <div style={{ background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 32 }}>
-                      <h3 style={{ fontSize: "0.9rem", color: T.text, margin: "0 0 12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                        📊 ATS Skills Match Analysis
-                      </h3>
-                      
-                      {userSkills.length === 0 ? <p style={{ fontSize: "0.8rem", color: T.textDim, margin: 0 }}>
-                          Add skills in <span style={{ color: T.purpleL, cursor: "pointer", fontWeight: 500 }} onClick={() => setActiveTab("My Profile")}>My Profile</span> to see a customized analysis.
-                        </p> : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                          {getMatchDetails(activeJob.requirements || activeJob.skills || []).matched.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                              <span style={{ fontSize: "0.78rem", color: T.green, fontWeight: 500, minWidth: 100 }}>Matched Skills:</span>
-                              {getMatchDetails(activeJob.requirements || activeJob.skills || []).matched.map((s) => <span key={s} style={{ fontSize: "0.72rem", background: T.greenDim, color: T.green, padding: "3px 8px", borderRadius: 8 }}>✓ {s}</span>)}
-                            </div>}
-                          
-                          {getMatchDetails(activeJob.requirements || activeJob.skills || []).missing.length > 0 ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                              <span style={{ fontSize: "0.78rem", color: T.orange, fontWeight: 500, minWidth: 100 }}>Missing Skills:</span>
-                              {getMatchDetails(activeJob.requirements || activeJob.skills || []).missing.map((s) => <span key={s} style={{ fontSize: "0.72rem", background: T.orange + "15", color: T.orange, padding: "3px 8px", borderRadius: 8 }}>+ {s}</span>)}
-                            </div> : <div style={{ fontSize: "0.78rem", color: T.green, fontWeight: 600 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                        <h3 style={{ fontSize: "0.95rem", color: T.text, margin: 0, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                          📊 ATS Skills Match Analysis
+                        </h3>
+                        {activeAts.score !== null && (
+                          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: activeAts.score >= 70 ? T.green : (activeAts.score >= 40 ? T.orange : T.textDim) }}>
+                            Match: {activeAts.score}% ({activeAts.totalMatched}/{activeAts.totalRequired} skills)
+                          </span>
+                        )}
+                      </div>
+
+                      {activeAts.status === "no_resume" ? (
+                        <div style={{ fontSize: "0.84rem", color: T.textMid, lineHeight: 1.5 }}>
+                          <p style={{ margin: "0 0 8px", color: T.orange }}>{activeAts.summaryMessage}</p>
+                          <span style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }} onClick={() => setActiveTab("My Profile")}>
+                            → Go to My Profile to Upload Resume
+                          </span>
+                        </div>
+                      ) : activeAts.status === "no_user_skills" ? (
+                        <div style={{ fontSize: "0.84rem", color: T.textMid, lineHeight: 1.5 }}>
+                          <p style={{ margin: "0 0 8px" }}>{activeAts.summaryMessage}</p>
+                          <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+                            <span style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }} onClick={() => setActiveTab("My Profile")}>→ Edit My Profile</span>
+                            <span style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }} onClick={() => setActiveTab("AI Resume Analyzer")}>→ Upload Resume</span>
+                          </div>
+                        </div>
+                      ) : activeAts.status === "no_job_requirements" ? (
+                        <div style={{ fontSize: "0.84rem", color: T.textMid, lineHeight: 1.5 }}>
+                          <p style={{ margin: 0 }}>{activeAts.summaryMessage}</p>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          <div style={{ fontSize: "0.82rem", color: activeAts.score >= 70 ? T.green : (activeAts.score >= 40 ? T.orange : T.textMid), fontWeight: 500 }}>
+                            {activeAts.summaryMessage}
+                          </div>
+
+                          {activeAts.matched.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                              <span style={{ fontSize: "0.78rem", color: T.green, fontWeight: 600, minWidth: 110 }}>Matched Skills ({activeAts.matched.length}):</span>
+                              {activeAts.matched.map((s) => (
+                                <span key={s} style={{ fontSize: "0.72rem", background: T.greenDim, color: T.green, padding: "3px 8px", borderRadius: 8, border: `1px solid ${T.green}30` }}>
+                                  ✓ {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {activeAts.missing.length > 0 ? (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                              <span style={{ fontSize: "0.78rem", color: T.orange, fontWeight: 600, minWidth: 110 }}>Missing Skills ({activeAts.missing.length}):</span>
+                              {activeAts.missing.map((s) => (
+                                <span key={s} style={{ fontSize: "0.72rem", background: T.orange + "15", color: T.orange, padding: "3px 8px", borderRadius: 8, border: `1px solid ${T.orange}30` }}>
+                                  + {s}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: "0.78rem", color: T.green, fontWeight: 600 }}>
                               ✨ You have all the matching skills for this position!
-                            </div>}
-                        </div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ height: 1, background: T.border, marginBottom: 24 }} />
