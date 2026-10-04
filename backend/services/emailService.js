@@ -1,22 +1,6 @@
-/**
- * Email Service Abstraction
- *
- * Provides a clean interface for dispatching transactional emails across the platform:
- *   - Welcome email on registration
- *   - Password reset instructions with secure tokens
- *   - Application submission confirmations
- *   - Application status updates (accepted / rejected)
- *
- * Delivery strategy:
- *   - If SMTP credentials are configured (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS),
- *     messages can be dispatched via standard SMTP transport.
- *   - When SMTP credentials are not configured (typical for local development & testing),
- *     it logs the email details cleanly and stores the notification in an in-memory
- *     audit buffer for inspection and automated tests.
- *   - Email failures never crash or disrupt the user's primary API action.
- */
+/** Transactional email dispatch service. */
 
-// In-memory buffer of dispatched emails (useful for testing & development audit)
+// In-memory buffer for testing and dev audit
 const sentEmailsBuffer = [];
 const MAX_BUFFER_SIZE = 50;
 
@@ -30,23 +14,17 @@ function recordEmail(emailData) {
   }
 }
 
-/**
- * Returns recent sent emails from the test/dev audit buffer.
- */
+/** Returns recent sent emails from buffer. */
 export function getSentEmails() {
   return [...sentEmailsBuffer];
 }
 
-/**
- * Clears the in-memory email buffer (used by tests).
- */
+/** Clears the in-memory email buffer. */
 export function clearSentEmails() {
   sentEmailsBuffer.length = 0;
 }
 
-/**
- * Dispatches an email message safely.
- */
+/** Dispatches email safely without throwing. */
 async function sendEmail({ to, subject, html, text }) {
   if (!to || !to.includes("@")) {
     console.warn("[EmailService] Skipped sending: invalid recipient address:", to);
@@ -56,7 +34,6 @@ async function sendEmail({ to, subject, html, text }) {
   const emailRecord = { to, subject, text, html };
   recordEmail(emailRecord);
 
-  // In development/test or if SMTP is not configured, log clearly
   if (process.env.NODE_ENV !== "test") {
     console.log(`[EmailService] ✉ To: ${to} | Subject: "${subject}"`);
   }
@@ -68,9 +45,7 @@ export const emailService = {
   getSentEmails,
   clearSentEmails,
 
-  /**
-   * Sent when a new user registers an account.
-   */
+  /** Sends registration welcome email. */
   async sendWelcomeEmail(to, fullname = "Job Seeker") {
     const subject = "Welcome to JobSphere!";
     const text = `Hi ${fullname},\n\nWelcome to JobSphere! Your account has been created successfully.\nYou can now search thousands of live jobs, track your applications, and analyze your resume.\n\nBest,\nThe JobSphere Team`;
@@ -85,9 +60,7 @@ export const emailService = {
     return sendEmail({ to, subject, html, text });
   },
 
-  /**
-   * Sent when a user requests a password reset.
-   */
+  /** Sends password reset email. */
   async sendPasswordResetEmail(to, resetToken, clientOrigin = "http://localhost:5173") {
     const resetUrl = `${clientOrigin}/?resetToken=${encodeURIComponent(resetToken)}`;
     const subject = "JobSphere - Password Reset Request";
@@ -108,9 +81,7 @@ export const emailService = {
     return sendEmail({ to, subject, html, text });
   },
 
-  /**
-   * Sent when a student applies for a job.
-   */
+  /** Sends job application confirmation email. */
   async sendApplicationSubmittedEmail(to, jobTitle, companyName = "the hiring company") {
     const subject = `Application Received: ${jobTitle}`;
     const text = `Hello,\n\nYour application for "${jobTitle}" at ${companyName} has been submitted successfully.\nThe hiring team will review your application and keep you updated on progress.\n\nBest,\nThe JobSphere Team`;
@@ -125,9 +96,7 @@ export const emailService = {
     return sendEmail({ to, subject, html, text });
   },
 
-  /**
-   * Sent when recruiter updates application status.
-   */
+  /** Sends status change email notification. */
   async sendApplicationStatusUpdateEmail(to, jobTitle, companyName = "the company", status = "updated") {
     const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1);
     const subject = `Update on your application for ${jobTitle}`;

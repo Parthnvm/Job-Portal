@@ -1,9 +1,4 @@
-/**
- * Middleware to restrict route access based on user role.
- * Must be mounted AFTER isAuthenticated middleware.
- *
- * @param  {...string} allowedRoles - List of authorized roles (e.g. 'recruiter', 'student', 'admin')
- */
+/** Restricts route access by user role. */
 export const authorizeRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user || !req.user.role) {

@@ -123,8 +123,7 @@ input[type=number] {
   appearance: textfield;
 }
 
-/* ─── Global Scrollbar Removal (Functionality Intact) ─────────────── */
-/* Hide scrollbars for WebKit browsers (Chrome, Safari, Edge, Opera) */
+/* Hide scrollbars */
 *,
 *::-webkit-scrollbar,
 ::-webkit-scrollbar {
@@ -160,7 +159,7 @@ body,
   -ms-overflow-style: none !important;
 }
 
-/* ─── Browse Jobs Split-Screen Layout ────────────────────────────── */
+/* Browse Jobs Layout */
 @media (min-width: 768px) {
   .jobs-page-container {
     height: 100vh !important;
@@ -226,7 +225,7 @@ body,
   }
 }
 
-/* ─── Responsive Navbar Utilities ─────────────────────────────────── */
+/* Navbar */
 .nav-mobile-toggle {
   display: none !important;
 }
@@ -240,7 +239,7 @@ body,
   }
 }
 
-/* ─── Infinite Carousel Marquee ───────────────────────────────────── */
+/* Carousel Marquee */
 .infinite-carousel-container {
   overflow: hidden;
   width: 100%;
@@ -279,7 +278,7 @@ body,
   }
 }
 
-/* ─── Perfect 3-Column Jobs Grid & Uniform Cards ──────────────────── */
+/* Jobs Grid */
 .jobs-card-grid {
   display: grid !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;

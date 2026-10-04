@@ -7,7 +7,7 @@ export const STORAGE_DIR = process.env.RESUME_STORAGE_DIR
   ? path.resolve(process.env.RESUME_STORAGE_DIR)
   : DEFAULT_STORAGE_DIR;
 
-// Ensure storage directory exists on startup
+// Ensure storage directory exists
 if (!fs.existsSync(STORAGE_DIR)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
@@ -21,13 +21,13 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".doc", ".docx", ".txt"]);
 
-/** Returns true if the extension and MIME type are both on the allow-list. */
+/** Validates file extension and MIME type. */
 export function isValidResumeFileType(originalName = "", mimeType = "") {
   const ext = path.extname(originalName || "").toLowerCase();
   return ALLOWED_EXTENSIONS.has(ext) && ALLOWED_MIME_TYPES.has(mimeType);
 }
 
-/** Strips path separators, null bytes, and control chars from a filename. */
+/** Sanitizes filename to prevent injection. */
 export function sanitizeResumeFilename(originalName = "resume.pdf") {
   const base = path.basename(originalName || "resume.pdf");
   const cleaned = base
@@ -37,10 +37,7 @@ export function sanitizeResumeFilename(originalName = "resume.pdf") {
   return cleaned.slice(0, 150) || "resume.pdf";
 }
 
-/**
- * Saves a file buffer to private storage under a random UUID filename.
- * @returns {Promise<{ fileId, storageKey, originalName, mimeType, size, uploadedAt }>}
- */
+/** Saves buffer to private storage under UUID filename. */
 export async function saveResumeFile(buffer, originalName = "resume.pdf", mimeType = "application/pdf") {
   if (!buffer || !Buffer.isBuffer(buffer) && !(buffer instanceof Uint8Array)) {
     throw new Error("Invalid resume buffer provided.");
@@ -69,10 +66,7 @@ export async function saveResumeFile(buffer, originalName = "resume.pdf", mimeTy
   return { fileId, storageKey, originalName: safeOriginalName, mimeType, size: buffer.length, uploadedAt: new Date() };
 }
 
-/**
- * Resolves and validates the storage path for a given key.
- * Throws on path traversal or missing file.
- */
+/** Resolves and validates file path with path traversal protection. */
 export function getResumeFilePath(storageKey) {
   if (!storageKey || typeof storageKey !== "string") throw new Error("Invalid resume storage key.");
 
@@ -92,9 +86,7 @@ export function getResumeFilePath(storageKey) {
   return resolved;
 }
 
-/**
- * Safely deletes a resume file. Does not throw if the file is already gone.
- */
+/** Deletes resume file safely. */
 export async function deleteResumeFile(storageKey) {
   try {
     if (!storageKey) return false;
@@ -107,11 +99,7 @@ export async function deleteResumeFile(storageKey) {
   }
 }
 
-/**
- * Streams a resume file to an HTTP response with appropriate security headers.
- * @param {import("express").Response} res
- * @param {{ storageKey: string, originalName: string, mimeType: string, download?: boolean }} options
- */
+/** Streams resume file to HTTP response. */
 export function streamResumeFile(res, { storageKey, originalName, mimeType, download = false }) {
   const filePath = getResumeFilePath(storageKey);
   const safeName = sanitizeResumeFilename(originalName || "resume.pdf");

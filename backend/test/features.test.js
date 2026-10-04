@@ -83,7 +83,7 @@ describe("Password Reset Token & Security (Fix #27)", () => {
     assert.notEqual(rawToken, hashed);
     assert.equal(hashed.length, 64);
 
-    // Verify hash reproduces identical digest from incoming raw token
+    // Verify SHA-256 digest match
     const verificationHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     assert.equal(hashed, verificationHash);
   });

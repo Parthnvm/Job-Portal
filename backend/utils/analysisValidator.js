@@ -1,16 +1,11 @@
-/**
- * Validates and normalizes the AI Resume Analyzer response structure.
- * Ensures data integrity, bounds scores between 0 and 100, and sanitizes output.
- * @param {any} raw
- * @returns {{ valid: boolean, sanitized: any, errors: string[] }}
- */
+/** Validates and normalizes AI resume analysis response. */
 export function validateAnalysis(raw) {
   const errors = [];
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { valid: false, sanitized: null, errors: ["Analysis response must be a JSON object."] };
   }
 
-  // Helper sanitizers
+  // Sanitizer helpers
   const cleanStr = (val, fallback = "") => (typeof val === "string" ? val.trim() : fallback);
   const cleanArr = (val) => (Array.isArray(val) ? val : []);
   const validEnums = (val, allowed, fallback) => (allowed.includes(val) ? val : fallback);
@@ -19,7 +14,7 @@ export function validateAnalysis(raw) {
   const summary = cleanStr(raw.summary);
   if (!summary) errors.push("Missing or invalid summary.");
 
-  // 2. Experience Level
+  // 2. Experience level
   const expLevelRaw = raw.experience_level || {};
   const allowedLevels = ["Student", "Entry Level", "Junior", "Mid Level", "Senior", "Insufficient evidence"];
   const expLevel = {
@@ -77,7 +72,7 @@ export function validateAnalysis(raw) {
       .filter((s) => Boolean(s.name));
   }
 
-  // 5. Missing Skills
+  // 5. Missing skills
   const allowedImportances = ["high", "medium", "low"];
   const missing_skills = cleanArr(raw.missing_skills).map((m) => ({
     skill: cleanStr(m?.skill, "Required Skill"),
@@ -86,14 +81,14 @@ export function validateAnalysis(raw) {
     recommended_action: cleanStr(m?.recommended_action, "Build a project or take a course in this topic."),
   })).filter((m) => Boolean(m.skill));
 
-  // 6. Weak Areas
+  // 6. Weak areas
   const weak_areas = cleanArr(raw.weak_areas).map((w) => ({
     area: cleanStr(w?.area, "Resume Section"),
     problem: cleanStr(w?.problem, "Needs additional detail or measurable metrics."),
     improvement: cleanStr(w?.improvement, "Add quantified achievements and specific technology usage."),
   })).filter((w) => Boolean(w.area));
 
-  // 7. Recommended Jobs
+  // 7. Recommended jobs
   const allowedMatchLevels = ["strong", "good", "partial"];
   const recommended_jobs = cleanArr(raw.recommended_jobs).map((job) => {
     let score = parseInt(job?.match_score, 10);
@@ -111,7 +106,7 @@ export function validateAnalysis(raw) {
     };
   }).filter((j) => Boolean(j.role));
 
-  // 8. Resume Improvements
+  // 8. Resume improvements
   const allowedPriorities = ["high", "medium", "low"];
   const resume_improvements = cleanArr(raw.resume_improvements).map((imp) => ({
     priority: validEnums(String(imp?.priority).toLowerCase(), allowedPriorities, "medium"),
@@ -120,14 +115,14 @@ export function validateAnalysis(raw) {
     recommendation: cleanStr(imp?.recommendation, "Provide direct action verbs and quantifiable results."),
   })).filter((imp) => Boolean(imp.problem || imp.recommendation));
 
-  // 9. Learning Priorities
+  // 9. Learning priorities
   const learning_priorities = cleanArr(raw.learning_priorities).map((lp) => ({
     skill: cleanStr(lp?.skill, "Key Skill"),
     priority: validEnums(String(lp?.priority).toLowerCase(), allowedPriorities, "medium"),
     reason: cleanStr(lp?.reason, "Enhances candidate competitiveness in the job market."),
   })).filter((lp) => Boolean(lp.skill));
 
-  // Calculate overall composite score (0 - 100)
+  // Composite score (0 - 100)
   let avgJobScore = 70;
   if (recommended_jobs.length > 0) {
     const total = recommended_jobs.reduce((acc, j) => acc + j.match_score, 0);

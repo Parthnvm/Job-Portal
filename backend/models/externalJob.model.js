@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const externalJobSchema = new mongoose.Schema(
   {
-    // ─── Source tracking ──────────────────────────────────────────────────────
+    // Source tracking
     provider: {
       type: String,
       required: true,
@@ -19,7 +19,7 @@ const externalJobSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ─── Normalized job details ───────────────────────────────────────────────
+    // Normalized job details
     title: {
       type: String,
       required: true,
@@ -73,7 +73,7 @@ const externalJobSchema = new mongoose.Schema(
       default: "",
     },
 
-    // ─── Dates ────────────────────────────────────────────────────────────────
+    // Dates
     postedAt: {
       type: Date,
       default: null,
@@ -86,7 +86,7 @@ const externalJobSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    // TTL: MongoDB will auto-delete documents 60 days after expiresAt
+    // TTL expiration
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
@@ -99,7 +99,7 @@ const externalJobSchema = new mongoose.Schema(
   }
 );
 
-// ─── Virtuals for Common Internal Format (snake_case aliases) ────────────────
+// Snake_case virtuals
 externalJobSchema.virtual("source").get(function () {
   return this.provider;
 });
@@ -148,18 +148,18 @@ externalJobSchema.virtual("salary_currency").get(function () {
   return this.salaryCurrency;
 });
 
-// id alias for frontend compatibility
+// Frontend id alias
 externalJobSchema.virtual("id").get(function () {
   return this._id ? this._id.toHexString() : undefined;
 });
 
-// ─── Deduplication index: (provider + externalId) must be unique ──────────────
+// Deduplication index
 externalJobSchema.index({ provider: 1, externalId: 1 }, { unique: true });
 
-// ─── TTL index: auto-remove expired jobs ─────────────────────────────────────
+// TTL index
 externalJobSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// ─── Search and sorting indexes: fast keyword, recency, location queries ──────
+// Search indexes
 externalJobSchema.index({ title: "text", description: "text", companyName: "text" });
 externalJobSchema.index({ location: 1 });
 externalJobSchema.index({ category: 1 });

@@ -1,8 +1,4 @@
-/**
- * ATS Skills Matching Engine
- * Compares user skills (from Profile & AI Resume Analyzer)
- * against actual job requirements / description.
- */
+/** ATS skills matching engine. */
 
 export const KNOWN_TECH_SKILLS = [
   "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", ".NET", "PHP", "Ruby", "Go", "Rust", "Swift", "Kotlin", "Scala", "C",
@@ -86,9 +82,7 @@ const SKILL_ALIASES = {
   "python": "python"
 };
 
-/**
- * Normalizes a skill string to lowercase canonical key.
- */
+/** Normalizes a skill string to lowercase canonical key. */
 export function normalizeSkill(skill = "") {
   if (!skill || typeof skill !== "string") return "";
   const cleaned = skill.trim().toLowerCase().replace(/[^\w\s+#.-]/g, "").replace(/\s+/g, " ");
@@ -99,9 +93,7 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Extracts skills from raw text (title + description) using boundary matching.
- */
+/** Extracts skills from raw text using boundary matching. */
 export function extractSkillsFromText(text = "") {
   if (!text || typeof text !== "string") return [];
   const found = new Set();
@@ -121,10 +113,7 @@ export function extractSkillsFromText(text = "") {
   return Array.from(found);
 }
 
-/**
- * Extracts required skills from a job object.
- * Priority: job.requirements -> job.skills -> job.tags -> extracted from description.
- */
+/** Extracts required skills from job object. */
 export function extractJobSkills(job) {
   if (!job) return [];
   const skillsSet = new Set();
@@ -158,9 +147,7 @@ export function extractJobSkills(job) {
   return Array.from(skillsSet);
 }
 
-/**
- * Extracts combined user skills from profile and AI Resume Analysis.
- */
+/** Extracts user skills from profile and resume analysis. */
 export function extractUserSkills(user = {}, resumeAnalysis = null) {
   const skillsSet = new Set();
 
@@ -194,9 +181,7 @@ export function extractUserSkills(user = {}, resumeAnalysis = null) {
   return Array.from(skillsSet);
 }
 
-/**
- * Computes deterministic ATS skills match score and details.
- */
+/** Computes ATS skills match score and details. */
 export function calculateATSScore(userSkills = [], jobSkills = [], hasResume = true) {
   if (!hasResume) {
     return {

@@ -1,11 +1,6 @@
 import mongoose from "mongoose";
 
-/**
- * SavedJob model — persists a user's bookmarked jobs.
- *
- * Supports both internal jobs (internalJobId) and external jobs (externalJobId).
- * Exactly one of the two must be set per document (enforced by application logic).
- */
+/** SavedJob model for bookmarked jobs. */
 const savedJobSchema = new mongoose.Schema(
   {
     user: {
@@ -14,19 +9,19 @@ const savedJobSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // For internal platform jobs
+    // Internal job ref
     internalJobId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Job",
       default: null,
     },
-    // For external provider jobs (stored by ExternalJob._id)
+    // External job ref
     externalJobId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ExternalJob",
       default: null,
     },
-    // Snapshot of key fields at save time (so saved jobs remain useful even after expiry)
+    // Job snapshot
     jobSnapshot: {
       title: { type: String, default: "" },
       companyName: { type: String, default: "" },
@@ -40,7 +35,7 @@ const savedJobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound unique index: one user cannot save the same job twice
+// Compound unique indexes
 savedJobSchema.index({ user: 1, internalJobId: 1 }, { unique: true, sparse: true });
 savedJobSchema.index({ user: 1, externalJobId: 1 }, { unique: true, sparse: true });
 savedJobSchema.index({ user: 1, createdAt: -1 });

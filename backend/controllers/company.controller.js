@@ -50,7 +50,7 @@ export const getCompany = async (req, res, next) => {
   }
 };
 
-// get company by id
+// Fetch company by ID
 export const getCompanyById = async (req, res, next) => {
   try {
     const companyId = req.params.id;
@@ -83,7 +83,7 @@ export const updateCompany = async (req, res, next) => {
       });
     }
 
-    // IDOR protection: Verify ownership
+    // Verify ownership
     if (existing.userId.toString() !== req.id) {
       return res.status(403).json({
         message: "Forbidden: You are not authorized to update this company.",

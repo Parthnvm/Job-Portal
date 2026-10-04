@@ -55,7 +55,7 @@ export const applyJob = async (req, res, next) => {
       });
     }
 
-    // Applicant must have an uploaded resume (hard business rule)
+    // Verify applicant resume exists
     const applicant = await User.findById(userId);
     if (!applicant) {
       return res.status(404).json({
@@ -73,7 +73,7 @@ export const applyJob = async (req, res, next) => {
       });
     }
 
-    // Snapshot the resume at application time (immutable)
+    // Snapshot resume
     const resumeSnapshot = {
       fileId: resumeMeta?.fileId || crypto.randomUUID(),
       storageKey: resumeMeta?.storageKey || applicant.profile?.resume,
@@ -83,7 +83,7 @@ export const applyJob = async (req, res, next) => {
       submittedAt: new Date(),
     };
 
-    // Calculate ATS match score at submission time
+    // Calculate ATS match score
     const jobText = `${job.title || ""} ${job.description || ""} ${(job.requirements || []).join(" ")}`;
     const jobSkills = extractSkills(jobText);
     const applicantSkills = applicant.profile?.skills || [];
@@ -92,7 +92,7 @@ export const applyJob = async (req, res, next) => {
     );
     const atsScore = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : null;
 
-    // Persist new application with resume snapshot and ATS match
+    // Persist application
     const newApplication = await Application.create({
       job: jobId,
       applicant: userId,
@@ -104,7 +104,7 @@ export const applyJob = async (req, res, next) => {
     job.applications.push(newApplication._id);
     await job.save();
 
-    // Send confirmation email (fire-and-forget)
+    // Send confirmation email
     const applicantEmail = req.user?.email || (await User.findById(userId).select("email").lean())?.email;
     if (applicantEmail) {
       const companyName = job.company?.name || "the hiring team";
@@ -120,7 +120,7 @@ export const applyJob = async (req, res, next) => {
     });
   } catch (error) {
     console.error("[applyJob error]:", error);
-    // Handle duplicate key race condition from unique index
+    // Handle duplicate application race
     if (error.code === 11000) {
       return res.status(400).json({
         message: "You have already applied for this job posting.",
@@ -154,7 +154,7 @@ export const getAppliedJobs = async (req, res, next) => {
   }
 };
 
-// Recruiter: fetch all applicants for a specific owned job
+// Fetch applicants for owned job
 export const getApplicants = async (req, res, next) => {
   try {
     const jobId = req.params.id;
@@ -174,7 +174,7 @@ export const getApplicants = async (req, res, next) => {
       });
     }
 
-    // IDOR: only the job creator (or admin) may view applicants
+    // Authorize job creator
     if (job.created_by.toString() !== req.id && req.user?.role !== "admin") {
       return res.status(403).json({
         message: "Forbidden: You are not authorized to view applicants for this job.",
@@ -204,7 +204,7 @@ export const updateStatus = async (req, res, next) => {
       });
     }
 
-    // Populate job + applicant to verify recruiter ownership and send notification
+    // Verify ownership and load contact
     const application = await Application.findById(applicationId)
       .populate({ path: "job", populate: { path: "company" } })
       .populate({ path: "applicant", select: "email fullname" });
@@ -216,7 +216,7 @@ export const updateStatus = async (req, res, next) => {
       });
     }
 
-    // IDOR: recruiter must own the job linked to this application
+    // Authorize job creator
     if (
       application.job &&
       application.job.created_by.toString() !== req.id &&
@@ -232,7 +232,7 @@ export const updateStatus = async (req, res, next) => {
     application.status = status.toLowerCase().trim();
     await application.save();
 
-    // Notify applicant of status change (fire-and-forget)
+    // Send status update notification
     if (application.applicant?.email) {
       const jobTitle = application.job?.title || "Position";
       const companyName = application.job?.company?.name || "the hiring company";
@@ -257,7 +257,7 @@ export const updateStatus = async (req, res, next) => {
   }
 };
 
-// Batch-fetch all applicants across all recruiter's jobs (avoids N+1)
+// Batch-fetch all applicants
 export const getRecruiterAllApplicants = async (req, res, next) => {
   try {
     const recruiterId = req.id;
@@ -280,7 +280,7 @@ export const getRecruiterAllApplicants = async (req, res, next) => {
   }
 };
 
-// getApplicationResume — applicant or owning recruiter only
+// Stream application resume
 export const getApplicationResume = async (req, res, next) => {
   try {
     const applicationId = req.params.id;
@@ -299,7 +299,7 @@ export const getApplicationResume = async (req, res, next) => {
       });
     }
 
-    // IDOR: applicant or owning recruiter or admin only
+    // Authorize applicant or recruiter
     const isApplicant = application.applicant?.toString() === req.id;
     const isJobOwner = application.job?.created_by?.toString() === req.id;
     const isAdmin = req.user?.role === "admin";

@@ -1,19 +1,11 @@
-/**
- * CSRF Protection — Double-Submit Cookie + Origin header verification.
- *
- * - On every request, the server ensures a CSRF token exists in cookie "csrf_token"
- *   and is emitted via the "X-CSRF-Token" response header.
- * - Mutating requests (POST/PUT/PATCH/DELETE) must echo the token in "X-CSRF-Token" header.
- * - Bearer-token requests are exempt (browsers never send custom auth headers cross-site).
- * - Origin/Referer verification is applied as a defense-in-depth fallback.
- */
+/** CSRF protection via double-submit cookie and origin validation. */
 
 import crypto from "crypto";
 
 export const CSRF_COOKIE_NAME = "csrf_token";
 export const CSRF_HEADER_NAME = "x-csrf-token";
 
-// Paths exempt from CSRF validation (OAuth callbacks use browser redirects)
+// Exempt paths
 const EXEMPT_PATH_PREFIXES = [
   "/api/v1/user/auth/github/callback",
   "/health",
@@ -21,12 +13,12 @@ const EXEMPT_PATH_PREFIXES = [
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-/** Generates a cryptographically strong CSRF token. */
+/** Generates cryptographic CSRF token. */
 export function generateCsrfToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
-/** Middleware: ensure a CSRF cookie exists on every response. */
+/** Sets CSRF cookie and response header. */
 export function setCsrfCookie(req, res, next) {
   if (!req.cookies) req.cookies = {};
 
@@ -37,7 +29,7 @@ export function setCsrfCookie(req, res, next) {
     token = generateCsrfToken();
     req.cookies[CSRF_COOKIE_NAME] = token;
     res.cookie(CSRF_COOKIE_NAME, token, {
-      httpOnly: false, // must be readable by client JS
+      httpOnly: false,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
@@ -50,20 +42,20 @@ export function setCsrfCookie(req, res, next) {
   next();
 }
 
-/** Middleware: validate CSRF token on mutating requests. */
+/** Validates CSRF token on mutating requests. */
 export function csrfProtection(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
 
   const isExempt = EXEMPT_PATH_PREFIXES.some((p) => req.path.startsWith(p));
   if (isExempt) return next();
 
-  // Bearer auth is immune to ambient cross-site CSRF
+  // Bearer auth exempt
   if (req.headers.authorization?.startsWith("Bearer ")) return next();
 
   const cookieToken = req.incomingCsrfCookie || req.cookies?.[CSRF_COOKIE_NAME];
   const headerToken = req.headers?.[CSRF_HEADER_NAME] || req.headers?.["x-csrf-token"];
 
-  // 1. Double-submit cookie match (timing-safe)
+  // Double-submit token check
   if (cookieToken && headerToken) {
     try {
       const cookieBuf = Buffer.from(cookieToken, "hex");
@@ -72,11 +64,11 @@ export function csrfProtection(req, res, next) {
         return next();
       }
     } catch {
-      // invalid hex format — fall through
+      // Fall through on parse error
     }
   }
 
-  // 2. Origin / Referer header verification (OWASP defense-in-depth)
+  // Origin verification
   let requestOrigin = req.headers.origin;
   if (!requestOrigin && req.headers.referer) {
     try { requestOrigin = new URL(req.headers.referer).origin; } catch { /* ignore */ }

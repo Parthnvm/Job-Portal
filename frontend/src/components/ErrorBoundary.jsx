@@ -1,13 +1,7 @@
 import React from "react";
 import { AlertTriangle, RotateCw, Home } from "lucide-react";
 
-/**
- * ErrorBoundary Component (Fix #20)
- *
- * Catches JavaScript errors anywhere in their child component tree,
- * logs those errors, and displays a graceful fallback UI instead of crashing
- * the entire React app with a blank screen.
- */
+/** Catches React errors and displays fallback UI. */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);

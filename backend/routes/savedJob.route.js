@@ -4,7 +4,7 @@ import { saveJob, unsaveJob, getSavedJobs, getSavedJobIds } from "../controllers
 
 const router = express.Router();
 
-// All saved-job routes require authentication
+// Requires authentication
 router.post("/save", isAuthenticated, saveJob);
 router.post("/unsave", isAuthenticated, unsaveJob);
 router.get("/", isAuthenticated, getSavedJobs);

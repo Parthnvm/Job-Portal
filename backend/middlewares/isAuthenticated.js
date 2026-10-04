@@ -2,22 +2,18 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import { config } from "../utils/config.js";
 
-/**
- * Verifies JWT from cookie or Authorization header.
- * Skips DB lookup when the token carries embedded role+email claims.
- * Sets req.id (string) and req.user ({ _id, role, email } or full User doc).
- */
+/** Verifies JWT from cookie or Authorization header. */
 const isAuthenticated = async (req, res, next) => {
   try {
     let token = req.cookies?.token;
 
-    // Support Authorization: Bearer <token>
+    // Support Bearer token
     const authHeader = req.headers.authorization;
     if (!token && authHeader?.startsWith("Bearer ")) {
       token = authHeader.split(" ")[1];
     }
 
-    // Support x-access-token header
+    // Support x-access-token
     if (!token && req.headers["x-access-token"]) {
       token = req.headers["x-access-token"];
     }
@@ -42,14 +38,14 @@ const isAuthenticated = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid token payload.", success: false });
     }
 
-    // Skip DB lookup when token has embedded claims (hot path)
+    // Skip DB lookup when token has embedded claims
     if (decoded.role && decoded.email) {
       req.id = String(decoded.userId);
       req.user = { _id: decoded.userId, role: decoded.role, email: decoded.email };
       return next();
     }
 
-    // Fallback DB lookup for older tokens without embedded claims
+    // Fallback DB lookup
     const user = await User.findById(decoded.userId).select("-password");
     if (!user) {
       return res.status(401).json({ message: "User account no longer exists.", success: false });

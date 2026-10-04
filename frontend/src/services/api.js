@@ -8,7 +8,7 @@ const cleanBaseUrl = rawApiUrl.replace(/\/+$/, "");
 
 const API = axios.create({
   baseURL: cleanBaseUrl.endsWith("/api/v1") ? cleanBaseUrl : `${cleanBaseUrl}/api/v1`,
-  withCredentials: true, // Critical for cookie-based authentication and CSRF double-submit
+  withCredentials: true, // Cookie auth and CSRF support
 });
 
 const MUTATING_METHODS = new Set(["post", "put", "patch", "delete"]);
@@ -16,9 +16,7 @@ const MUTATING_METHODS = new Set(["post", "put", "patch", "delete"]);
 let cachedCsrfToken = null;
 let csrfFetchPromise = null;
 
-/**
- * Safely reads the csrf_token cookie if available on the current document domain.
- */
+/** Reads csrf_token cookie. */
 function readCsrfCookie() {
   try {
     if (typeof document === "undefined") return null;
@@ -29,9 +27,7 @@ function readCsrfCookie() {
   }
 }
 
-/**
- * Retrieves a valid CSRF token, reusing existing token or in-flight promise.
- */
+/** Retrieves valid CSRF token. */
 export async function getCsrfToken(forceRefresh = false) {
   if (!forceRefresh) {
     if (cachedCsrfToken) return cachedCsrfToken;
@@ -47,7 +43,6 @@ export async function getCsrfToken(forceRefresh = false) {
   }
 
   csrfFetchPromise = API.get("/user/csrf-token", {
-    // Avoid triggering request interceptor loops
     _skipCsrf: true,
   })
     .then((res) => {
@@ -59,7 +54,7 @@ export async function getCsrfToken(forceRefresh = false) {
     })
     .catch((err) => {
       console.warn("[CSRF] Failed to fetch CSRF token:", err?.message || err);
-      return cachedCsrfToken; // fallback to whatever we had
+      return cachedCsrfToken;
     })
     .finally(() => {
       csrfFetchPromise = null;
@@ -68,20 +63,20 @@ export async function getCsrfToken(forceRefresh = false) {
   return csrfFetchPromise;
 }
 
-// Automatically attach stored user auth headers and CSRF tokens
+// Request interceptor: attach bearer token and CSRF header
 API.interceptors.request.use(
   async (config) => {
-    // 1. Bearer Token
+    // Bearer Token
     try {
       const token = localStorage.getItem("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (e) {
-      // Ignore localStorage access error
+      // Ignore storage error
     }
 
-    // 2. CSRF Token on mutating requests
+    // CSRF header
     const method = (config.method || "get").toLowerCase();
     if (MUTATING_METHODS.has(method) && !config._skipCsrf) {
       let csrf = cachedCsrfToken || readCsrfCookie();
@@ -98,10 +93,9 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: capture fresh CSRF tokens, handle 401 expiration, and auto-retry on CSRF 403
+// Response interceptor: sync CSRF and handle auth expiration
 API.interceptors.response.use(
   (response) => {
-    // Keep CSRF token in sync if server returned a new one
     const newCsrf = response.headers?.["x-csrf-token"];
     if (newCsrf) {
       cachedCsrfToken = newCsrf;
@@ -111,7 +105,7 @@ API.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 403 CSRF token missing / mismatch: refresh token and retry once
+    // Retry once on CSRF 403
     if (
       error.response &&
       error.response.status === 403 &&
@@ -121,7 +115,7 @@ API.interceptors.response.use(
       error.response.data.message.toLowerCase().includes("csrf")
     ) {
       originalRequest._retryCsrf = true;
-      cachedCsrfToken = null; // bust cache
+      cachedCsrfToken = null;
       const freshToken = await getCsrfToken(true);
       if (freshToken) {
         originalRequest.headers["x-csrf-token"] = freshToken;
@@ -144,7 +138,7 @@ API.interceptors.response.use(
   }
 );
 
-// Proactively pre-fetch CSRF token on startup (non-blocking)
+// Pre-fetch CSRF token on startup
 if (typeof window !== "undefined") {
   getCsrfToken().catch(() => {});
 }

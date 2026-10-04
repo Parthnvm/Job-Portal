@@ -110,7 +110,7 @@ export function formatExternalJob(j) {
   };
 }
 
-// ── postJob (recruiters) ────────────────────────────────────────────────────────────
+// postJob
 export const postJob = async (req, res, next) => {
   try {
     const {
@@ -170,7 +170,7 @@ export const postJob = async (req, res, next) => {
   }
 };
 
-// ── getAllJob (public / applicants) ───────────────────────────────────────────────
+// getAllJob
 export const getAllJob = async (req, res, next) => {
   try {
     const rawKeyword = typeof req.query.keyword === "string"
@@ -296,7 +296,7 @@ export const getAllJob = async (req, res, next) => {
   }
 };
 
-// ── getJobById ───────────────────────────────────────────────────────────────────
+// getJobById
 export const getJobById = async (req, res, next) => {
   try {
     const jobId = req.params.id;
@@ -326,7 +326,7 @@ export const getJobById = async (req, res, next) => {
   }
 };
 
-// ── getAdminJobs (recruiters, paginated) ─────────────────────────────────────────
+// getAdminJobs
 export const getAdminJobs = async (req, res, next) => {
   try {
     const adminId = req.id;

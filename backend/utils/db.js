@@ -1,16 +1,6 @@
 import mongoose from "mongoose";
 
-/**
- * Connects to MongoDB with sensible pool and timeout settings.
- *
- * Connection settings:
- *   maxPoolSize:              10  — max concurrent connections (suitable for single-instance apps)
- *   minPoolSize:               2  — keep warm connections to avoid cold-start latency
- *   serverSelectionTimeoutMS: 5000  — fail fast if the server is unreachable at startup
- *   socketTimeoutMS:         45000  — drop idle sockets after 45 s (prevents stale connection hangs)
- *   connectTimeoutMS:        10000  — abort connection attempts after 10 s
- *   heartbeatFrequencyMS:    10000  — periodic health check interval
- */
+/** Connects to MongoDB with connection pool settings. */
 const connectDB = async () => {
   const uri = process.env.MONGO_URI;
   if (!uri) {

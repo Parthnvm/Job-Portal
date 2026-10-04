@@ -28,7 +28,7 @@ const jobSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  // category: stored and returned correctly — not hardcoded to "Engineering"
+  // Job category
   category: {
     type: String,
     default: "",
@@ -59,7 +59,7 @@ const jobSchema = new mongoose.Schema({
   ],
 }, { timestamps: true });
 
-// Performance indexes for search and filters
+// Performance indexes
 jobSchema.index({ location: 1 });
 jobSchema.index({ created_by: 1 });
 jobSchema.index({ company: 1 });
@@ -67,8 +67,7 @@ jobSchema.index({ createdAt: -1 });
 jobSchema.index({ title: 1, createdAt: -1 });
 jobSchema.index({ category: 1 });
 
-// Full-text search index covering title, description, and requirements
-// Fixes #21: regex on description was a full collection scan
+// Full-text search index
 jobSchema.index(
   { title: "text", description: "text", requirements: "text" },
   { name: "job_text_search", weights: { title: 10, requirements: 5, description: 1 } }

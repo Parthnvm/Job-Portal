@@ -1,10 +1,6 @@
-/**
- * Robust date parser and honest relative time formatter for Frontend.
- *
- * Distinguishes actual publication dates from fetched/imported timestamps.
- * NEVER fabricates "1d ago" or today's date for missing or invalid dates.
- */
+/** Date parser and relative time formatter. */
 
+/** Parses various date formats to Date or null without fabricating. */
 export function parsePublicationDate(rawDate) {
   if (rawDate === null || rawDate === undefined || rawDate === "") {
     return null;
@@ -79,11 +75,7 @@ export function parsePublicationDate(rawDate) {
   return null;
 }
 
-/**
- * Returns formatted relative time string, or null if date is not available.
- * Handles: ISO dates, timestamps, relative dates, missing dates.
- * Does NOT fabricate.
- */
+/** Formats relative time (e.g. "2h ago", "3d ago") or returns fallback. */
 export function formatRelativeTime(dateInput, fallback = null) {
   const date = parsePublicationDate(dateInput);
   if (!date) return fallback;

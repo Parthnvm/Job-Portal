@@ -638,7 +638,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   const userName = savedUser.fullname || "Candidate";
   const hasResume = Boolean(savedUser.profile?.resumeMetadata?.fileId || savedUser.profile?.resume);
 
-  // Fetch latest AI Resume Analysis on mount or user update
+  // Fetch latest resume analysis
   useEffect(() => {
     let isMounted = true;
     async function loadResumeAnalysis() {
@@ -657,7 +657,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     };
   }, [userId, userVer]);
 
-  // Authoritative user skills: profile skills + AI resume extracted skills
+  // Combined user skills
   const combinedUserSkills = useMemo(() => {
     return extractUserSkills(savedUser, resumeAnalysis);
   }, [savedUser, resumeAnalysis, userVer]);
@@ -732,7 +732,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   useEffect(() => {
     fetchJobs();
     fetchApplications();
-    // Fetch user's saved job IDs from backend (Fix #25)
+    // Fetch saved job IDs
     API.get("/saved-jobs/ids")
       .then((res) => {
         if (res.data?.success && Array.isArray(res.data.savedJobIds)) {
@@ -779,7 +779,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     };
   }, [userId]);
 
-  // Load saved jobs from backend whenever the user switches to the "Saved" tab (Fix #25)
+  // Load saved jobs on tab switch
   useEffect(() => {
     if (activeTab === "Saved") {
       API.get("/saved-jobs")
@@ -794,7 +794,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
     }
   }, [activeTab]);
 
-  // Background auto-refresh (every 5 minutes or configured interval) & on window refocus
+  // Background auto-refresh
   useEffect(() => {
     const refreshIntervalMs = Number(import.meta.env.VITE_AUTO_REFRESH_INTERVAL_MS) || 300000;
     const intervalTimer = setInterval(() => {
@@ -1027,7 +1027,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
       setLinkSuccess("");
     }}
   /> : activeTab === "My Applications" ? (
-    // ─── My Applications Screen ──────────────────────────────────────────
+    // My Applications
     <div style={{ flex: 1, maxWidth: 1e3, width: "100%", margin: "40px auto", padding: "0 24px", fontFamily: T.font }}>
               <div style={{ marginBottom: 32 }}>
                 <h1 style={{ fontSize: "2rem", fontFamily: T.serif, color: T.text, margin: "0 0 8px" }}>My Applications</h1>
@@ -1154,7 +1154,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
                 </div>}
             </div>
   ) : (
-    // ─── Browse Jobs & Saved Screen ──────────────────────────────────────
+    // Browse Jobs & Saved
     <div className="jobs-main-layout" style={{ display: "flex", flex: 1, maxWidth: 1440, width: "100%", margin: "0 auto", height: "calc(100vh - 64px)", minHeight: 0, overflow: "hidden" }}>
               
               {

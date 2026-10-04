@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
     profile: {
       bio: { type: String },
       skills: [{ type: String }],
-      resume: { type: String }, // URL or identifier
+      resume: { type: String },
       resumeOriginalName: { type: String },
       resumeMetadata: {
         fileId: { type: String },
@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema(
       googleEmail: { type: String },
       githubEmail: { type: String },
     },
-    // Password reset fields (Fix #27)
+    // Password reset fields
     resetPasswordToken: {
       type: String,
       default: null,

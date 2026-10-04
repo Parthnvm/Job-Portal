@@ -953,7 +953,7 @@ function CompaniesSection() {
     fetchCompanies();
   }, []);
 
-  // Use real API data if we have 3+ companies; otherwise supplement with curated Indian fallbacks
+  // Fallback companies
   const companies = apiCompanies.length >= 3 ? apiCompanies : [
     ...apiCompanies,
     ...INDIA_FALLBACK_COMPANIES.slice(0, Math.max(0, 12 - apiCompanies.length)).map((c, i) => ({ ...c, _id: `fallback-${i}` }))
@@ -1239,7 +1239,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
     };
   }, []);
 
-  // Background auto-refresh (every 5 minutes or configured interval) & on window refocus
+  // Background auto-refresh
   useEffect(() => {
     const refreshIntervalMs = Number(import.meta.env.VITE_AUTO_REFRESH_INTERVAL_MS) || 300000;
     const intervalTimer = setInterval(() => {
@@ -1383,7 +1383,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
                           window.open(targetUrl, "_blank", "noopener,noreferrer");
                         }
                       } else if (onSignInForJob && jobDetails) {
-                        // preserve the selected job through auth
+                        // Preserve selected job
                         onSignInForJob(jobDetails);
                         setSelectedJob(null);
                         setJobDetails(null);

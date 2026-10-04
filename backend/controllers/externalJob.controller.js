@@ -6,20 +6,7 @@ import { jobProviderManager } from "../services/jobProviderManager.js";
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
-/**
- * GET /api/v1/external-jobs/search
- * GET /api/jobs
- *
- * Query params supported:
- *   query | keyword   {string}  - Filter / search term (e.g. "software developer", "python")
- *   location          {string}  - Location filter (e.g. "Pune", "Mumbai")
- *   source | provider {string}  - "adzuna" | "jooble" | "all" (default: "all")
- *   category          {string}  - Category filter (optional)
- *   remote            {boolean} - Remote filter (optional)
- *   page              {number}  - 1-based page (default: 1)
- *   limit             {number}  - Results per page (default: 20, max: 50)
- *   force             {boolean} - Bypass cache (default: false)
- */
+/** Searches external jobs with caching and pagination. */
 export const searchExternalJobs = async (req, res) => {
   try {
     const rawQuery = req.query.query || req.query.keyword || "";
@@ -33,9 +20,9 @@ export const searchExternalJobs = async (req, res) => {
     const limitNum = Math.min(MAX_LIMIT, Math.max(1, parseInt(rawLimit) || DEFAULT_LIMIT));
 
     const result = await jobProviderManager.searchJobs({
-      query: rawQuery.trim(),
-      location: rawLocation.trim(),
-      source: rawSource.trim(),
+      query: rawQuery,
+      location: rawLocation,
+      source: rawSource,
       page: pageNum,
       limit: limitNum,
       force,
@@ -43,7 +30,7 @@ export const searchExternalJobs = async (req, res) => {
 
     let jobs = result.jobs;
 
-    // Apply optional memory filters if requested (category, remote)
+    // Filter category and remote
     if (req.query.category && req.query.category.trim()) {
       const cat = req.query.category.trim().toLowerCase();
       jobs = jobs.filter((j) => (j.category || "").toLowerCase().includes(cat));
@@ -52,7 +39,7 @@ export const searchExternalJobs = async (req, res) => {
       jobs = jobs.filter((j) => j.isRemote === true);
     }
 
-    // Ensure each job has both `id` and `_id`, and both camelCase and snake_case properties
+    // Normalize job fields
     const formattedJobs = jobs.map((j) => {
       const id = j._id ? String(j._id) : String(j.id || j.externalId);
       return {
@@ -75,7 +62,7 @@ export const searchExternalJobs = async (req, res) => {
       };
     });
 
-    // Requirement 1 & 7: Sort newest / recently posted jobs first
+    // Sort newest first
     formattedJobs.sort((a, b) => {
       const timeA = a.postedAt ? new Date(a.postedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       const timeB = b.postedAt ? new Date(b.postedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
@@ -105,9 +92,7 @@ export const searchExternalJobs = async (req, res) => {
   }
 };
 
-/**
- * GET /api/v1/external-jobs/:id
- */
+/** Fetches external job by ID. */
 export const getExternalJobById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -155,10 +140,7 @@ export const getExternalJobById = async (req, res) => {
   }
 };
 
-/**
- * POST /api/v1/external-jobs/sync
- * Triggers a manual sync cycle with force=true
- */
+/** Triggers manual external jobs sync. */
 export const triggerSync = async (req, res) => {
   try {
     const result = await syncExternalJobs({ force: true });

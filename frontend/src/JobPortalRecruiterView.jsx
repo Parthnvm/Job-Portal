@@ -764,7 +764,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                   </div>
 
                   {activeSubTab === "Active Jobs" ? (
-                    // ─── Active Job Postings Grid ──────────────────────────────────
+                    // Active Jobs Grid
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
                       {jobs.length === 0 ? (
                         <div style={{ textAlign: "center", padding: "60px 24px", color: T.textDim, background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, gridColumn: "1 / -1" }}>
@@ -810,7 +810,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                       isDark={isDark}
                     />
                   ) : (
-                    // ─── Overview Dashboard Layout ───────────────────────────────
+                    // Overview Dashboard
                     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                       {jobs.length === 0 && (
                         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "32px 24px", textAlign: "center" }}>
@@ -1091,7 +1091,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
       </AnimatePresence>
 
       {
-    /* ─── Post Job Glass Modal ───────────────────────────────────────────── */
+    /* Post Job Modal */
   }
       <AnimatePresence>
         {isPostModalOpen && <div style={{ position: "fixed", inset: 0, zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "rgba(9, 9, 15, 0.75)" : "rgba(15, 23, 42, 0.45)", backdropFilter: "blur(10px)" }}>

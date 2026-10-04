@@ -5,7 +5,7 @@ import { SearchCache } from "../models/searchCache.model.js";
 import { RateLimiter } from "./rateLimiter.js";
 import { deduplicateJobs } from "./jobDeduplicator.js";
 
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2h
 
 export class JobProviderManager {
   constructor() {
@@ -18,10 +18,7 @@ export class JobProviderManager {
     this.registerProvider(new JoobleJobProvider());
   }
 
-  /**
-   * Registers a provider instance.
-   * @param {import('../providers/ExternalJobProvider.js').JobProvider} provider
-   */
+  /** Registers a provider instance. */
   registerProvider(provider) {
     this._providers.set(provider.providerName.toLowerCase(), provider);
   }
@@ -34,9 +31,7 @@ export class JobProviderManager {
     return Array.from(this._providers.values());
   }
 
-  /**
-   * Generates a deterministic cache key for a search query.
-   */
+  /** Generates cache key for search parameters. */
   static getCacheKey({ query = "", location = "", source = "all", page = 1 }) {
     const q = (query || "").trim().toLowerCase();
     const loc = (location || "").trim().toLowerCase();
@@ -44,25 +39,14 @@ export class JobProviderManager {
     return `${src}:${loc}:${q}:${page}`;
   }
 
-  /**
-   * Searches jobs with query-through caching, rate-limit awareness, and provider isolation.
-   *
-   * @param {Object} params
-   * @param {string} [params.query]     - Search query / keywords (e.g. "software developer")
-   * @param {string} [params.location]  - Location (e.g. "Pune", "Mumbai")
-   * @param {string} [params.source]    - "adzuna" | "jooble" | "all"
-   * @param {number} [params.page=1]    - 1-based page number
-   * @param {number} [params.limit=20]  - Results per page
-   * @param {boolean} [params.force]    - Bypass cache
-   * @returns {Promise<{ jobs: any[], total: number, page: number, limit: number, fromCache: boolean, providersStatus: any }>}
-   */
+  /** Searches jobs across providers with caching and fallback. */
   async searchJobs({ query = "", location = "", source = "all", page = 1, limit = 20, force = false } = {}) {
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
     const normalizedSource = (source || "all").toLowerCase().trim();
     const cacheKey = JobProviderManager.getCacheKey({ query, location, source: normalizedSource, page: pageNum });
 
-    // 1. Check SearchCache if not forcing refresh
+    // 1. SearchCache check
     if (!force) {
       try {
         const cachedEntry = await SearchCache.findOne({ cacheKey, expiresAt: { $gt: new Date() } }).lean();
@@ -85,7 +69,7 @@ export class JobProviderManager {
       }
     }
 
-    // 2. Determine target providers
+    // 2. Target providers
     const targetProviders = [];
     if (normalizedSource === "adzuna") {
       const p = this.getProvider("adzuna");
@@ -94,11 +78,10 @@ export class JobProviderManager {
       const p = this.getProvider("jooble");
       if (p) targetProviders.push(p);
     } else {
-      // "all" or unspecified
       targetProviders.push(...this.getAllProviders());
     }
 
-    // 3. Check rate limits & configuration for each provider
+    // 3. Provider rate limits
     const providersToExecute = [];
     const providersStatus = {};
 
@@ -119,7 +102,7 @@ export class JobProviderManager {
       providersToExecute.push(provider);
     }
 
-    // 4. Execute external queries with Provider Failure Isolation (Promise.allSettled)
+    // 4. Query providers with failure isolation
     const fetchedJobs = [];
 
     if (providersToExecute.length > 0) {
@@ -152,7 +135,7 @@ export class JobProviderManager {
       }
     }
 
-    // 5. If live providers fetched jobs, deduplicate and upsert to MongoDB
+    // 5. Upsert fetched jobs to DB and cache
     if (fetchedJobs.length > 0) {
       const uniqueJobs = deduplicateJobs(fetchedJobs);
       const upsertedJobIds = [];
@@ -199,7 +182,6 @@ export class JobProviderManager {
         }
       }
 
-      // Save to SearchCache
       if (upsertedJobIds.length > 0) {
         try {
           await SearchCache.updateOne(
@@ -223,7 +205,6 @@ export class JobProviderManager {
         }
       }
 
-      // Fetch freshly stored jobs from DB sorted by publication date
       const jobsToReturn = await ExternalJob.find({ _id: { $in: upsertedJobIds } })
         .sort({ postedAt: -1, importedAt: -1 })
         .lean();
@@ -237,7 +218,7 @@ export class JobProviderManager {
       };
     }
 
-    // 6. Fallback: If live providers returned 0 jobs or were throttled/failed, query existing MongoDB jobs
+    // 6. DB fallback when external providers return empty or fail
     const dbFilter = {};
     if (query && query.trim()) {
       dbFilter.$or = [
@@ -271,5 +252,5 @@ export class JobProviderManager {
   }
 }
 
-// Global Singleton Instance
+// Global singleton instance
 export const jobProviderManager = new JobProviderManager();

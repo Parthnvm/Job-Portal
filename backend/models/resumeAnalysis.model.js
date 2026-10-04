@@ -34,7 +34,7 @@ const resumeAnalysisSchema = new mongoose.Schema(
       completionTokens: { type: Number, default: 0 },
       totalTokens: { type: Number, default: 0 },
     },
-    // Retain analysis for 30 days by default (automatic TTL cleanup)
+    // 30-day retention
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -43,10 +43,10 @@ const resumeAnalysisSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index for instant cache lookup by user + hash
+// Cache lookup index
 resumeAnalysisSchema.index({ userId: 1, resumeHash: 1 });
 
-// TTL index for automatic expiry
+// TTL index
 resumeAnalysisSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const ResumeAnalysis = mongoose.model("ResumeAnalysis", resumeAnalysisSchema);

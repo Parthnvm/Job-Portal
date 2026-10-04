@@ -17,7 +17,7 @@ const applicationSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected"],
       default: "pending",
     },
-    // Durable resume snapshot captured at application time
+    // Resume snapshot
     resume: {
       fileId: { type: String, required: true },
       storageKey: { type: String, required: true },
@@ -26,7 +26,7 @@ const applicationSchema = new mongoose.Schema(
       size: { type: Number, default: 0 },
       submittedAt: { type: Date, default: Date.now },
     },
-    // ATS match snapshot calculated against this specific job at application time
+    // ATS match snapshot
     atsScore: {
       type: Number,
       default: null,
@@ -36,10 +36,10 @@ const applicationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent duplicate applications for the same job by the same user at DB level
+// Prevent duplicate applications
 applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
 applicationSchema.index({ applicant: 1, createdAt: -1 });
 applicationSchema.index({ job: 1, createdAt: -1 });
 applicationSchema.index({ "resume.fileId": 1 });
 
-export const Application = mongoose.model("Application", applicationSchema);
+export const Application = mongoose.model("Application", applicationSchema);

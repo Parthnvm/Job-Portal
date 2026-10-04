@@ -8,7 +8,7 @@ import { Application } from "../models/application.model.js";
 import { Writable } from "stream";
 import { saveResumeFile, deleteResumeFile, STORAGE_DIR } from "../utils/resumeStorage.js";
 
-// Helper to create mock Express response (supports Writable streaming)
+// Mock Express response helper
 function createMockRes() {
   const chunks = [];
   const res = new Writable({
@@ -207,7 +207,7 @@ test("Application Resume Access: IDOR Protection (Recruiter & Applicant Authoriz
     await deleteResumeFile(saved.storageKey);
   });
 
-  // 1. Other Recruiter (does NOT own job) -> 403 Forbidden
+  // Unauthorized recruiter
   {
     const req = {
       id: otherRecruiterId,
@@ -221,7 +221,7 @@ test("Application Resume Access: IDOR Protection (Recruiter & Applicant Authoriz
     assert.match(res.body.message, /not authorized/i);
   }
 
-  // 2. Other Applicant (not their application) -> 403 Forbidden
+  // Unauthorized applicant
   {
     const req = {
       id: otherApplicantId,
@@ -235,7 +235,7 @@ test("Application Resume Access: IDOR Protection (Recruiter & Applicant Authoriz
     assert.match(res.body.message, /not authorized/i);
   }
 
-  // 3. Owner Recruiter (owns the job posting) -> Allowed (sets headers and streams)
+  // Owning recruiter
   {
     const req = {
       id: ownerRecruiterId,
@@ -250,7 +250,7 @@ test("Application Resume Access: IDOR Protection (Recruiter & Applicant Authoriz
     assert.match(res.headers["Content-Disposition"], /inline/);
   }
 
-  // 4. Submitting Applicant -> Allowed
+  // Submitting applicant
   {
     const req = {
       id: applicantId,
@@ -268,7 +268,7 @@ test("Application Resume Access: IDOR Protection (Recruiter & Applicant Authoriz
 test("Profile Resume: Recruiter Cannot Modify or Upload Applicant Resume", async () => {
   const recruiterId = "64b0f0000000000000000099";
 
-  // Upload attempt by recruiter
+  // Recruiter upload check
   {
     const req = {
       id: recruiterId,
@@ -281,7 +281,7 @@ test("Profile Resume: Recruiter Cannot Modify or Upload Applicant Resume", async
     assert.match(res.body.message, /only applicants/i);
   }
 
-  // Delete attempt by recruiter
+  // Recruiter delete check
   {
     const req = {
       id: recruiterId,

@@ -14,7 +14,7 @@ const router = express.Router();
 
 // Student routes
 router.route("/apply/:id").post(isAuthenticated, authorizeRole("student"), applyJob);
-router.route("/apply/:id").get(isAuthenticated, authorizeRole("student"), applyJob); // Backwards compatibility
+router.route("/apply/:id").get(isAuthenticated, authorizeRole("student"), applyJob);
 router.route("/get").get(isAuthenticated, getAppliedJobs);
 
 // Recruiter routes
@@ -22,7 +22,7 @@ router.route("/recruiter/all").get(isAuthenticated, authorizeRole("recruiter", "
 router.route("/:id/applicants").get(isAuthenticated, authorizeRole("recruiter", "admin"), getApplicants);
 router.route("/status/:id/update").post(isAuthenticated, authorizeRole("recruiter", "admin"), updateStatus);
 
-// Application submitted resume access (Applicant, Job Owner Recruiter, or Admin)
+// Resume access
 router.route("/:id/resume").get(isAuthenticated, getApplicationResume);
 
 export default router;

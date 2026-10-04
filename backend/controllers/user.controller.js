@@ -14,8 +14,7 @@ import { saveResumeFile, deleteResumeFile, streamResumeFile } from "../utils/res
 import { Application } from "../models/application.model.js";
 import { extractSkills } from "../utils/skillExtractor.js";
 
-// OAuth state nonce store — maps state string → { role, action, userId, expiresAt }
-// Scale to Redis for multi-instance deployments.
+// OAuth state store
 const oauthStateStore = new Map();
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 min TTL
 
@@ -46,7 +45,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000).unref();
 
-/** Returns a sanitized user object for API responses. */
+/** Returns sanitized user object. */
 function buildUserResponse(user) {
   return {
     _id: user._id,
@@ -58,7 +57,7 @@ function buildUserResponse(user) {
   };
 }
 
-/** Signs a JWT with embedded role+email so isAuthenticated can skip the DB on hot paths. */
+/** Signs JWT token. */
 function signToken(userId, { role, email } = {}) {
   const payload = { userId };
   if (role) payload.role = role;
@@ -66,7 +65,7 @@ function signToken(userId, { role, email } = {}) {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 }
 
-/** Sets the httpOnly auth cookie (1 day). */
+/** Sets httpOnly auth cookie. */
 function setAuthCookie(res, token) {
   res.cookie("token", token, {
     maxAge: 24 * 60 * 60 * 1000,
@@ -76,7 +75,7 @@ function setAuthCookie(res, token) {
   });
 }
 
-// ── register ─────────────────────────────────────────────────────────────────
+// register
 export const register = async (req, res) => {
   try {
     const { fullname, email, phoneNumber, password, role } = req.body;
@@ -124,7 +123,7 @@ export const register = async (req, res) => {
   }
 };
 
-// ── login ────────────────────────────────────────────────────────────────────
+// login
 export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -162,7 +161,7 @@ export const login = async (req, res) => {
   }
 };
 
-// ── logout ───────────────────────────────────────────────────────────────────
+// logout
 export const logout = async (req, res) => {
   try {
     return res.status(200)
@@ -175,7 +174,7 @@ export const logout = async (req, res) => {
   }
 };
 
-// ── updateProfile ────────────────────────────────────────────────────────────
+// updateProfile
 export const updateProfile = async (req, res) => {
   try {
     if (!req.id) {
@@ -242,7 +241,7 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// ── analyzeResume ────────────────────────────────────────────────────────────
+// analyzeResume
 export const analyzeResume = async (req, res) => {
   try {
     if (!req.file) {
@@ -317,7 +316,7 @@ export const analyzeResume = async (req, res) => {
   }
 };
 
-// ── getLatestResumeAnalysis ──────────────────────────────────────────────────
+// getLatestResumeAnalysis
 export const getLatestResumeAnalysis = async (req, res) => {
   try {
     const userId = req.id;
@@ -347,7 +346,7 @@ export const getLatestResumeAnalysis = async (req, res) => {
   }
 };
 
-// ── getCurrentUser ───────────────────────────────────────────────────────────
+// getCurrentUser
 export const getCurrentUser = async (req, res) => {
   try {
     const userId = req.id;
@@ -362,7 +361,7 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
-// ── googleLogin ──────────────────────────────────────────────────────────────
+// googleLogin
 const _googleClient = new OAuth2Client(config.googleClientId);
 
 export const googleLogin = async (req, res) => {
@@ -443,7 +442,7 @@ export const googleLogin = async (req, res) => {
   }
 };
 
-// ── githubInitiate — generates and stores a secure OAuth state nonce ─────────
+// githubInitiate
 export const githubInitiate = (req, res) => {
   const { role = "student", action = "login" } = req.query;
   const safeRole = isValidRole(role) ? role : "student";
@@ -470,7 +469,7 @@ export const githubInitiate = (req, res) => {
   return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
 };
 
-// ── githubCallback — validates server-issued state, prevents role manipulation ─
+// githubCallback
 export const githubCallback = async (req, res) => {
   const clientOrigin = config.clientOrigin || "http://localhost:5173";
   try {
@@ -584,7 +583,7 @@ export const githubCallback = async (req, res) => {
   }
 };
 
-// ── unlinkSocialAccount ──────────────────────────────────────────────────────
+// unlinkSocialAccount
 export const unlinkSocialAccount = async (req, res) => {
   try {
     const userId = req.id;
@@ -630,7 +629,7 @@ export const unlinkSocialAccount = async (req, res) => {
   }
 };
 
-// ── forgotPassword ───────────────────────────────────────────────────────────
+// forgotPassword
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -672,7 +671,7 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// ── resetPassword ────────────────────────────────────────────────────────────
+// resetPassword
 export const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -715,7 +714,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// ── uploadProfileResume (student only) ──────────────────────────────────────
+// uploadProfileResume
 export const uploadProfileResume = async (req, res) => {
   try {
     const userId = req.id;
@@ -819,7 +818,7 @@ export const uploadProfileResume = async (req, res) => {
   }
 };
 
-// ── getProfileResume (student only) ─────────────────────────────────────────
+// getProfileResume
 export const getProfileResume = async (req, res) => {
   try {
     const userId = req.id;
@@ -868,7 +867,7 @@ export const getProfileResume = async (req, res) => {
   }
 };
 
-// ── deleteProfileResume (student only) ──────────────────────────────────────
+// deleteProfileResume
 export const deleteProfileResume = async (req, res) => {
   try {
     const userId = req.id;

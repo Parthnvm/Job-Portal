@@ -1,37 +1,23 @@
-/**
- * Robust date parser and normalizer for job publication dates.
- *
- * Requirements:
- * - Handle ISO dates, timestamps (seconds and milliseconds), relative dates, missing/invalid dates.
- * - Do NOT fabricate publication dates (returns null if unparseable or missing).
- * - Distinguish actual provider publication date from fetched/imported timestamps.
- */
+/** Date parser and relative time formatter. */
 
-/**
- * Normalizes different possible provider date formats into a standard Date object or null.
- *
- * @param {string|number|Date|null|undefined} rawDate
- * @returns {Date|null} Valid Date object, or null if date is missing/invalid.
- */
+/** Parses various date formats to Date or null without fabricating. */
 export function parsePublicationDate(rawDate) {
   if (rawDate === null || rawDate === undefined || rawDate === "") {
     return null;
   }
 
-  // If already a Date object
+  // Date instance
   if (rawDate instanceof Date) {
     return isNaN(rawDate.getTime()) ? null : rawDate;
   }
 
-  // If timestamp number
+  // Timestamp number
   if (typeof rawDate === "number") {
     if (isNaN(rawDate) || rawDate <= 0) return null;
-    // If in seconds (Unix epoch seconds: ~10 digits, e.g. 1700000000)
     if (rawDate < 1e11) {
       const d = new Date(rawDate * 1000);
       return isNaN(d.getTime()) ? null : d;
     }
-    // If in milliseconds (~13 digits)
     const d = new Date(rawDate);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -43,7 +29,7 @@ export function parsePublicationDate(rawDate) {
   const trimmed = rawDate.trim();
   if (!trimmed) return null;
 
-  // Pure numeric string
+  // Numeric string
   if (/^\d+$/.test(trimmed)) {
     const num = Number(trimmed);
     if (!isNaN(num) && num > 0) {
@@ -66,7 +52,6 @@ export function parsePublicationDate(rawDate) {
     return new Date(Date.now() - 24 * 60 * 60 * 1000);
   }
 
-  // Matches like "3 days ago", "1 day ago", "5 hours ago", "30 mins ago", "2 weeks ago", "1 month ago"
   const relMatch = lower.match(/^(\d+)\s*(minute|min|hour|hr|day|week|month)s?\s*ago$/);
   if (relMatch) {
     const amount = parseInt(relMatch[1], 10);
@@ -83,12 +68,9 @@ export function parsePublicationDate(rawDate) {
     }
   }
 
-  // Standard ISO / RFC / date string parse
-  // Handle space separator instead of T (e.g. "2026-09-10 18:30:00")
+  // Standard ISO / RFC string
   const standardDate = new Date(trimmed.includes(" ") && !trimmed.includes("T") ? trimmed.replace(" ", "T") : trimmed);
   if (!isNaN(standardDate.getTime())) {
-    // Sanity check: publication date should not be unreasonably in the distant future (> 7 days from now)
-    // or before the year 2000
     const year = standardDate.getFullYear();
     if (year >= 2000 && standardDate.getTime() <= Date.now() + 7 * 24 * 60 * 60 * 1000) {
       return standardDate;
@@ -98,13 +80,7 @@ export function parsePublicationDate(rawDate) {
   return null;
 }
 
-/**
- * Returns a human-friendly relative time string or null if the date is missing/invalid.
- * NEVER fabricates "1d ago" for missing or invalid dates.
- *
- * @param {string|number|Date|null|undefined} dateInput
- * @returns {string|null} e.g. "Just now", "2h ago", "3d ago", or null
- */
+/** Formats relative time (e.g. "2h ago", "3d ago") or returns null. */
 export function formatRelativeTime(dateInput) {
   const date = parsePublicationDate(dateInput);
   if (!date) return null;
@@ -113,7 +89,6 @@ export function formatRelativeTime(dateInput) {
   const diffMs = now - date.getTime();
 
   if (diffMs < 0) {
-    // Slight clock drift or posted within future seconds
     return "Just now";
   }
 

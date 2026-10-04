@@ -43,8 +43,8 @@ describe("ATS Matching Engine", () => {
     assert.ok(skills.includes("React"));
     assert.ok(skills.includes("Docker"));
     assert.ok(skills.includes("CI/CD"));
-    // Should NOT falsely match unrelated sub-words
-    assert.ok(!skills.includes("Go")); // "Looking" or "good" shouldn't trigger "Go"
+    // Sub-word boundary check
+    assert.ok(!skills.includes("Go"));
   });
 
   it("extracts job skills prioritizing direct requirements and tags", () => {
@@ -178,13 +178,10 @@ describe("Job Merging and Deduplication", () => {
 
     const merged = mergeAndDeduplicateJobs(existingJobs, newApiJobs, fallbackDemos);
 
-    // Old platform job is preserved
+    // Verify preservation of internal, external, and fallback jobs
     assert.ok(merged.some((j) => j._id === "int_1" && j.title === "Test Job"));
-    // New API job is present
     assert.ok(merged.some((j) => j.externalId === "ext_100"));
-    // Demo jobs are preserved
     assert.ok(merged.some((j) => j._id === "demo_1"));
-    // Total count includes all distinct jobs
     assert.equal(merged.length, 7);
   });
 

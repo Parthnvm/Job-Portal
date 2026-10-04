@@ -9,9 +9,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const RETRY_DELAY_MS = 2_000;
 const JOB_TTL_DAYS = 60;
 
-/**
- * Strips HTML tags and unescapes common entities.
- */
+/** Strips HTML tags and unescapes entities. */
 function cleanText(str = "") {
   if (!str) return "";
   return str
@@ -25,9 +23,7 @@ function cleanText(str = "") {
     .trim();
 }
 
-/**
- * Maps Adzuna contract_time / contract_type to a standardized jobType string.
- */
+/** Maps contract time/type to standard jobType. */
 function mapJobType(result) {
   const time = (result.contract_time || "").toLowerCase();
   const type = (result.contract_type || "").toLowerCase();
@@ -37,9 +33,7 @@ function mapJobType(result) {
   return result.contract_time || result.contract_type || "Full-Time";
 }
 
-/**
- * Detects if a job is remote from title, description, or location text.
- */
+/** Detects remote keywords in job details. */
 function detectRemote(result) {
   const text = `${result.title || ""} ${result.description || ""} ${
     result.location?.display_name || ""
@@ -52,10 +46,7 @@ function detectRemote(result) {
   );
 }
 
-/**
- * Normalizes a raw Adzuna job object into the standard NormalizedJob shape.
- * Honors actual publication date without fabricating dates if missing.
- */
+/** Normalizes raw Adzuna job to standard schema. */
 function normalizeAdzunaJob(result, currency = "INR") {
   const rawMin = result.salary_min ? Math.round(result.salary_min) : null;
   const rawMax = result.salary_max ? Math.round(result.salary_max) : null;
@@ -86,7 +77,6 @@ function normalizeAdzunaJob(result, currency = "INR") {
   const combinedText = `${title} ${cleanDescription} ${result.category?.label || ""}`;
   const skills = extractSkills(combinedText);
 
-  // Honest dates: parse actual provider publication date without fabricating
   const postedAt = parsePublicationDate(result.created);
   const importedAt = new Date();
   const refreshedAt = new Date();
@@ -170,16 +160,13 @@ export class AdzunaJobProvider extends JobProvider {
     return Boolean(this.appId && this.appKey);
   }
 
-  /**
-   * Search jobs from Adzuna India API with structured logging and recency prioritization.
-   */
+  /** Searches jobs via Adzuna API. */
   async searchJobs({ keyword = "developer", location = "", page = 1, pageSize = 20, sortBy = "date", maxDaysOld = 30 } = {}) {
     if (!this.isConfigured()) {
       console.warn("[Adzuna] ADZUNA_APP_ID or ADZUNA_APP_KEY not set — skipping fetch.");
       return [];
     }
 
-    // Check if cooldown from a previous 429 is active
     if (Date.now() < this._rateLimitedUntil) {
       const waitSeconds = Math.ceil((this._rateLimitedUntil - Date.now()) / 1000);
       console.warn(`[Adzuna] Rate-limit cooldown active. Skipping request (${waitSeconds}s remaining).`);
@@ -207,16 +194,12 @@ export class AdzunaJobProvider extends JobProvider {
     return this._fetchWithRetry(url, params);
   }
 
-  /**
-   * Normalize single job
-   */
+  /** Normalizes a single raw job. */
   normalizeJob(rawJob) {
     return normalizeAdzunaJob(rawJob, this.currency);
   }
 
-  /**
-   * Internal HTTP execution with one exponential retry on 5xx/network abort.
-   */
+  /** Internal HTTP execution with retry on failure. */
   async _fetchWithRetry(url, params, attempt = 1) {
     try {
       const response = await axios.get(url, {
@@ -248,7 +231,7 @@ export class AdzunaJobProvider extends JobProvider {
         return [];
       }
 
-      // Retry once on 5xx or connection drop
+      // Retry once on 5xx or network drop
       if (attempt === 1 && (status >= 500 || code === "ECONNABORTED" || code === "ECONNRESET" || code === "ETIMEDOUT")) {
         console.warn(`[Adzuna] Transient error (${status || code}). Retrying in ${RETRY_DELAY_MS}ms...`);
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));

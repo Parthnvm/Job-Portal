@@ -1,13 +1,9 @@
-/**
- * Application configuration with startup validation.
- * Refuses to start in production if critical secrets are absent or too short.
- * Secrets are never logged.
- */
+/** App configuration and startup environment validation. */
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 const IS_PRODUCTION = NODE_ENV === "production";
 
-/** Resolves JWT secret; fails fast in production, uses a dev placeholder otherwise. */
+/** Resolves JWT secret with production validation. */
 function resolveJwtSecret() {
   const secret = process.env.SECRET_KEY || process.env.JWT_SECRET;
 

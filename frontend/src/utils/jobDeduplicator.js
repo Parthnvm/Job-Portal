@@ -1,21 +1,4 @@
-/**
- * Frontend Job Deduplication & Merge Engine
- *
- * Implements strict multi-tier deduplication and robust merging of:
- * - Existing state/platform jobs
- * - Freshly fetched API listings
- * - Static demo/seed roles
- *
- * Deduplication Priority:
- * 1. Provider job ID (externalId)
- * 2. Canonical job URL (without tracking UTMs)
- * 3. Stable internal MongoDB/job ID (_id / id)
- * 4. Conservative normalized fingerprint (title + company + location)
- */
-
-/**
- * Strips UTM parameters, tracking query strings, and hashes from URLs.
- */
+/** Strips UTM and tracking query parameters from URLs. */
 export function cleanUrl(rawUrl = "") {
   if (!rawUrl || typeof rawUrl !== "string") return "";
   const trimmed = rawUrl.trim();
@@ -31,9 +14,7 @@ export function cleanUrl(rawUrl = "") {
   }
 }
 
-/**
- * Normalizes text for comparison.
- */
+/** Normalizes text for comparison. */
 export function normalizeText(text = "") {
   return (text || "")
     .toLowerCase()
@@ -42,9 +23,7 @@ export function normalizeText(text = "") {
     .trim();
 }
 
-/**
- * Normalizes job object ensuring consistent structure across internal, external, and demo sources.
- */
+/** Normalizes job schema across internal, external, and demo sources. */
 export function normalizeJob(job) {
   if (!job) return null;
 
@@ -73,7 +52,6 @@ export function normalizeJob(job) {
     ? "demo"
     : (job.source || (isExternal ? provider : "JobSphere Direct"));
 
-  // Keep true publication date distinct from fetchedAt and refreshedAt
   const postedAt = job.postedAt || job.posted_date || job.createdAt || null;
   const fetchedAt = job.fetched_at || job.importedAt || new Date().toISOString();
   const refreshedAt = job.refreshedAt || job.refreshed_at || new Date().toISOString();
@@ -106,9 +84,7 @@ export function normalizeJob(job) {
   };
 }
 
-/**
- * Deduplicates an array of jobs according to the 4-tier priority rules.
- */
+/** Deduplicates jobs by provider ID, canonical URL, stable ID, or fingerprint. */
 export function deduplicateFrontendJobs(jobs = []) {
   if (!Array.isArray(jobs) || jobs.length === 0) return [];
 
@@ -126,14 +102,14 @@ export function deduplicateFrontendJobs(jobs = []) {
     const provider = String(job.provider || "").toLowerCase();
     const externalId = String(job.externalId || "");
 
-    // 1. Provider Job ID (for external jobs)
+    // Provider ID
     if (provider && externalId) {
       const providerKey = `${provider}:${externalId}`;
       if (seenProviderIds.has(providerKey)) continue;
       seenProviderIds.add(providerKey);
     }
 
-    // 2. Canonical Job URL
+    // Canonical URL
     const rawUrl = job.externalUrl || job.apply_url || "";
     const canonicalUrl = cleanUrl(rawUrl);
     if (canonicalUrl) {
@@ -141,13 +117,13 @@ export function deduplicateFrontendJobs(jobs = []) {
       seenCanonicalUrls.add(canonicalUrl);
     }
 
-    // 3. Existing Stable ID
+    // Stable ID
     if (id) {
       if (seenStableIds.has(id)) continue;
       seenStableIds.add(id);
     }
 
-    // 4. Conservative fingerprint (title + company + location)
+    // Fingerprint (title + company + location)
     const normTitle = normalizeText(job.title);
     const normComp = normalizeText(job.companyName);
     const normLoc = normalizeText(job.location);
@@ -164,27 +140,16 @@ export function deduplicateFrontendJobs(jobs = []) {
   return result;
 }
 
-/**
- * Merges existing jobs with freshly fetched API jobs and fallback seed/demo jobs.
- *
- * Rules:
- * - OLD EXISTING JOBS + NEW API JOBS + DEMO JOBS = COMBINED COLLECTION
- * - Incoming fresh API jobs take precedence for latest information
- * - Existing jobs are never deleted or wiped on refresh
- * - Demo jobs are preserved with honest "demo" source attribution
- * - Combined collection is deduplicated and sorted by publication date
- */
+/** Merges, deduplicates, and sorts jobs by publication date. */
 export function mergeAndDeduplicateJobs(existingJobs = [], incomingJobs = [], fallbackSeedJobs = []) {
   const safeExisting = Array.isArray(existingJobs) ? existingJobs : [];
   const safeIncoming = Array.isArray(incomingJobs) ? incomingJobs : [];
   const safeFallback = Array.isArray(fallbackSeedJobs) ? fallbackSeedJobs : [];
 
-  // Fresh incoming jobs first to update stale fields, then existing jobs, then static demo jobs
   const combinedRaw = [...safeIncoming, ...safeExisting, ...safeFallback];
-
   const deduplicated = deduplicateFrontendJobs(combinedRaw);
 
-  // Sort by actual publication date descending (newest first)
+  // Sort by publication date descending
   deduplicated.sort((a, b) => {
     const timeA = a.postedAt
       ? new Date(a.postedAt).getTime()

@@ -8,18 +8,13 @@ const KNOWN_SKILLS = [
   "Data Science", "Pandas", "NumPy", "TensorFlow", "PyTorch", "NLP", "Computer Vision"
 ];
 
-/**
- * Extracts recognized technical skills from job title and description text.
- * @param {string} text - Concatenated title, description, and keywords
- * @returns {string[]} - Array of unique matched skills
- */
+/** Extracts technical skills from text using word boundaries. */
 export function extractSkills(text = "") {
   if (!text || typeof text !== "string") return [];
   const found = new Set();
-  const lower = text.toLowerCase();
 
   for (const skill of KNOWN_SKILLS) {
-    // Exact word boundary check for short terms like "Go", "R", "C" vs general words
+    // Word boundary matching
     const regex = new RegExp(`\\b${escapeRegExp(skill)}\\b`, "i");
     if (regex.test(text)) {
       found.add(skill);

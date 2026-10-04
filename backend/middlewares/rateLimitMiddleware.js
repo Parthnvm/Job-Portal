@@ -1,13 +1,8 @@
-/**
- * In-memory sliding-window rate limiter (Redis-free).
- * @param {number} options.windowMs - Window duration in ms (default: 60 000)
- * @param {number} options.max - Max requests per IP per window (default: 15)
- * @param {string} options.message - Response message on limit breach
- */
+/** In-memory sliding-window rate limiter middleware. */
 export const rateLimit = ({ windowMs = 60 * 1000, max = 15, message = "Too many requests. Please try again later." } = {}) => {
   const hits = new Map();
 
-  // Purge expired buckets every 5 minutes
+  // Purge expired buckets
   setInterval(() => {
     const now = Date.now();
     for (const [ip, record] of hits.entries()) {

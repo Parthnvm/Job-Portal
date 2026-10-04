@@ -1,10 +1,12 @@
-import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import dotenv from "dotenv";
 import crypto from "crypto";
 import connectDB from "./utils/db.js";
 import { config } from "./utils/config.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
+import { setCsrfCookie, csrfProtection } from "./middlewares/csrf.js";
 import userRoute from "./routes/user.routes.js";
 import companyRoute from "./routes/company.route.js";
 import jobRoute from "./routes/job.route.js";
@@ -12,14 +14,13 @@ import applicationRoute from "./routes/application.route.js";
 import externalJobRoute from "./routes/externalJob.route.js";
 import savedJobRoute from "./routes/savedJob.route.js";
 import { scheduleSyncLoop } from "./services/externalJobSync.js";
-import errorHandler from "./middlewares/errorHandler.js";
-import { setCsrfCookie, csrfProtection } from "./middlewares/csrf.js";
+
+dotenv.config({});
 
 const app = express();
 
 // Security headers
 app.use((req, res, next) => {
-  // Attach request ID for tracing
   const reqId = req.headers["x-request-id"] || crypto.randomUUID();
   req.id = reqId;
   res.setHeader("X-Request-Id", reqId);
@@ -29,8 +30,7 @@ app.use((req, res, next) => {
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  // CSP: allows self, Google OAuth/fonts, data/blob URIs, Groq API
-  // NOTE: Tighten unsafe-inline with nonces before production hardening.
+  // Content security policy
   const csp = [
     "default-src 'self'",
     "script-src 'self' https://accounts.google.com https://apis.google.com 'unsafe-inline'",
@@ -54,7 +54,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
-// CORS
+// CORS configuration
 const defaultOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -68,9 +68,7 @@ const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow no-origin requests (mobile, curl, server-to-server)
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    // Allow any localhost port in development
     if (config.nodeEnv !== "production" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
@@ -81,7 +79,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// CSRF
+// CSRF protection
 app.use(setCsrfCookie);
 app.use(csrfProtection);
 
@@ -90,7 +88,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
-// CSRF token endpoint (lets the frontend bootstrap its token)
+// CSRF token bootstrap
 app.get("/api/v1/user/csrf-token", (req, res) => {
   const token = req.csrfToken || req.cookies?.["csrf_token"];
   return res.status(200).json({ success: true, csrfToken: token });
@@ -105,7 +103,7 @@ app.use("/api/v1/external-jobs", externalJobRoute);
 app.use("/api/jobs", externalJobRoute);
 app.use("/api/v1/saved-jobs", savedJobRoute);
 
-// 404 catch-all for /api (must be after all valid routes)
+// 404 handler for API routes
 app.use("/api", (req, res) => {
   res.status(404).json({
     success: false,
@@ -113,17 +111,18 @@ app.use("/api", (req, res) => {
   });
 });
 
-// Centralized error handler (must be last)
+// Centralized error handler
 app.use(errorHandler);
 
 // Start server
+const PORT = config.port;
 if (process.env.NODE_ENV !== "test") {
-  app.listen(config.port, async () => {
-    await connectDB();
-    console.log(`Server running at port ${config.port} [${config.nodeEnv}]`);
-    if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
+  connectDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running at port ${PORT}`);
+      // Background external job synchronization
       scheduleSyncLoop();
-    }
+    });
   });
 }
 

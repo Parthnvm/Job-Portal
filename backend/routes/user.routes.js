@@ -1,33 +1,33 @@
 import express from "express";
 import {
+  register,
   login,
   logout,
-  register,
-  forgotPassword,
-  resetPassword,
   updateProfile,
   analyzeResume,
   getLatestResumeAnalysis,
+  getCurrentUser,
   googleLogin,
   githubInitiate,
   githubCallback,
-  getCurrentUser,
   unlinkSocialAccount,
+  forgotPassword,
+  resetPassword,
   uploadProfileResume,
   getProfileResume,
   deleteProfileResume,
 } from "../controllers/user.controller.js";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
-import authorizeRole from "../middlewares/authorizeRole.js";
 import { singleUpload } from "../middlewares/multer.js";
 import { rateLimit } from "../middlewares/rateLimitMiddleware.js";
+import { authorizeRole } from "../middlewares/authorizeRole.js";
 
 const router = express.Router();
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
-  message: "Too many authentication attempts. Please try again after one minute.",
+  max: 15,
+  message: "Too many authentication attempts. Please wait a minute and try again.",
 });
 
 const resumeLimiter = rateLimit({
@@ -39,25 +39,25 @@ const resumeLimiter = rateLimit({
 router.route("/register").post(authLimiter, register);
 router.route("/login").post(authLimiter, login);
 
-// Password reset endpoints (Fix #27)
+// Password reset
 router.route("/forgot-password").post(authLimiter, forgotPassword);
 router.route("/reset-password").post(authLimiter, resetPassword);
 
-// Logout: supports POST (primary) and GET, does not block expired sessions
+// Logout
 router.route("/logout").post(logout).get(logout);
 
 router.route("/me").get(isAuthenticated, getCurrentUser);
 router.route("/profile/update").post(isAuthenticated, updateProfile);
 router.route("/profile/unlink").post(isAuthenticated, unlinkSocialAccount);
 
-// Profile resume management (Job Seeker / Student role only)
+// Profile resume management (student)
 router
   .route("/profile/resume")
   .post(isAuthenticated, authorizeRole("student"), resumeLimiter, singleUpload, uploadProfileResume)
   .get(isAuthenticated, authorizeRole("student"), getProfileResume)
   .delete(isAuthenticated, authorizeRole("student"), deleteProfileResume);
 
-// Also support /resume alias for convenience
+// Resume alias
 router
   .route("/resume")
   .get(isAuthenticated, authorizeRole("student"), getProfileResume);
@@ -68,7 +68,7 @@ router.route("/resume-analysis/latest").get(isAuthenticated, getLatestResumeAnal
 // Google OAuth
 router.route("/auth/google").post(authLimiter, googleLogin);
 
-// GitHub OAuth — initiate generates a server-side cryptographic state nonce
+// GitHub OAuth
 router.route("/auth/github").get(authLimiter, githubInitiate);
 router.route("/auth/github/callback").get(githubCallback);
 

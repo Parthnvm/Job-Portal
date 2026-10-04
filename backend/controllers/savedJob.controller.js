@@ -3,9 +3,7 @@ import { Job } from "../models/job.model.js";
 import { ExternalJob } from "../models/externalJob.model.js";
 import { formatInternalJob, formatExternalJob } from "./job.controller.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// saveJob — bookmark a job for the authenticated user
-// ─────────────────────────────────────────────────────────────────────────────
+// saveJob
 export const saveJob = async (req, res, next) => {
   try {
     const userId = req.id;
@@ -81,9 +79,7 @@ export const saveJob = async (req, res, next) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// unsaveJob — remove a bookmarked job
-// ─────────────────────────────────────────────────────────────────────────────
+// unsaveJob
 export const unsaveJob = async (req, res, next) => {
   try {
     const userId = req.id;
@@ -109,9 +105,7 @@ export const unsaveJob = async (req, res, next) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getSavedJobs — list all saved jobs for the authenticated user
-// ─────────────────────────────────────────────────────────────────────────────
+// getSavedJobs
 export const getSavedJobs = async (req, res, next) => {
   try {
     const userId = req.id;
@@ -131,7 +125,7 @@ export const getSavedJobs = async (req, res, next) => {
 
     const jobs = saved.map((s) => {
       if (!s.internalJobId && !s.externalJobId) {
-        // Both refs expired — return the snapshot
+        // Return snapshot if references expired
         return {
           _id: String(s._id),
           id: String(s._id),
@@ -161,10 +155,7 @@ export const getSavedJobs = async (req, res, next) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getSavedJobIds — lightweight endpoint to get just the IDs the user has saved
-// (used by the frontend to show "saved" badge state on job cards)
-// ─────────────────────────────────────────────────────────────────────────────
+// getSavedJobIds
 export const getSavedJobIds = async (req, res, next) => {
   try {
     const userId = req.id;

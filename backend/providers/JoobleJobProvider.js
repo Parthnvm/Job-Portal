@@ -10,9 +10,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const RETRY_DELAY_MS = 2_000;
 const JOB_TTL_DAYS = 60;
 
-/**
- * Strips HTML tags and unescapes common entities.
- */
+/** Strips HTML tags and unescapes entities. */
 function cleanText(str = "") {
   if (!str) return "";
   return str
@@ -26,9 +24,7 @@ function cleanText(str = "") {
     .trim();
 }
 
-/**
- * Detects if a job is remote from title, snippet, or location text.
- */
+/** Detects remote keywords in job text. */
 function detectRemote(text = "") {
   const lower = text.toLowerCase();
   return (
@@ -39,9 +35,7 @@ function detectRemote(text = "") {
   );
 }
 
-/**
- * Parses salary range or single number from Jooble salary string.
- */
+/** Parses salary numbers and currency from salary string. */
 function parseSalary(salaryStr = "") {
   if (!salaryStr) return { salaryMin: null, salaryMax: null, currency: "INR" };
   const numbers = salaryStr
@@ -67,9 +61,7 @@ function parseSalary(salaryStr = "") {
   return { salaryMin, salaryMax, currency };
 }
 
-/**
- * Maps Jooble employment type string to a standard jobType string.
- */
+/** Maps Jooble employment type to standard jobType. */
 function mapJobType(type = "") {
   const lower = type.toLowerCase();
   if (lower.includes("part")) return "Part-Time";
@@ -78,10 +70,7 @@ function mapJobType(type = "") {
   return "Full-Time";
 }
 
-/**
- * Normalizes a raw Jooble job item into the standard NormalizedJob shape.
- * Honors actual publication date without fabricating dates if missing.
- */
+/** Normalizes raw Jooble job item to standard schema. */
 function normalizeJoobleJob(item) {
   const cleanTitle = cleanText(item.title || "");
   const cleanSnippet = cleanText(item.snippet || "");
@@ -103,7 +92,6 @@ function normalizeJoobleJob(item) {
 
   const salaryDisplay = formatSalaryRangeINR(salaryMin, salaryMax, "INR", item.salary || "");
 
-  // Honest dates: parse actual provider publication date without fabricating
   const postedAt = parsePublicationDate(item.updated);
   const importedAt = new Date();
   const refreshedAt = new Date();
@@ -175,10 +163,7 @@ export class JoobleJobProvider extends JobProvider {
     return Boolean(this.apiKey && this.apiKey.length > 0);
   }
 
-  /**
-   * Search jobs using the Jooble India REST API.
-   * Specification: POST https://in.jooble.org/api/{apiKey} with application/json body.
-   */
+  /** Searches jobs via Jooble REST API. */
   async searchJobs({ keyword = "developer", location = "", page = 1, pageSize = 20 } = {}) {
     if (!this.isConfigured()) {
       console.warn("[Jooble] JOOBLE_API_KEY not configured — skipping fetch.");
@@ -245,7 +230,7 @@ export class JoobleJobProvider extends JobProvider {
         return [];
       }
 
-      // If primary endpoint failed with 404 or connection issue on in.jooble.org, try jooble.org fallback once
+      // Fallback endpoint if regional domain fails
       if (attempt === 1 && url.includes("in.jooble.org") && (status === 404 || code === "ENOTFOUND")) {
         const fallbackUrl = `${FALLBACK_JOOBLE_BASE_URL}/${this.apiKey}`;
         console.warn(`[Jooble] Regional host failed (${status || code}). Retrying on standard host: ${fallbackUrl}`);

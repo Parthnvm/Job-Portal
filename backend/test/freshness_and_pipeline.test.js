@@ -57,7 +57,7 @@ test("Date Parser & Freshness Normalization", async (t) => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     assert.equal(formatRelativeTime(twoDaysAgo), "2d ago");
 
-    // Invalid/null must return null, NOT fabricated "1d ago"
+    // Null or invalid returns null
     assert.equal(formatRelativeTime(null), null);
     assert.equal(formatRelativeTime("invalid-date"), null);
   });
@@ -97,7 +97,7 @@ test("Job Providers Dynamic Configuration", async (t) => {
     const adzuna = new AdzunaJobProvider();
     const jooble = new JoobleJobProvider();
 
-    // Verify properties are dynamic getters
+    // Dynamic getters check
     const origAppId = process.env.ADZUNA_APP_ID;
     const origJoobleKey = process.env.JOOBLE_API_KEY;
 

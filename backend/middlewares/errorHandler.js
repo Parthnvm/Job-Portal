@@ -1,7 +1,4 @@
-/**
- * Centralized Express error handler.
- * Standardizes API error shapes and prevents unhandled crashes.
- */
+/** Centralized Express error handler. */
 export const errorHandler = (err, req, res, next) => {
   console.error(`[Error Handler] ${req.method} ${req.originalUrl}:`, err);
 
@@ -13,13 +10,13 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Mongoose schema validation
+  // Schema validation error
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors || {}).map((e) => e.message);
     return res.status(400).json({ success: false, message: "Validation Error", errors: messages });
   }
 
-  // MongoDB duplicate key (11000)
+  // MongoDB duplicate key
   if (err.code === 11000) {
     const duplicateFields = Object.keys(err.keyPattern || {});
     return res.status(409).json({
@@ -28,7 +25,7 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Multer file upload errors
+  // Multer upload errors
   if (err.name === "MulterError") {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(413).json({ success: false, message: "Uploaded file is too large. Maximum allowed size is 5MB." });
@@ -44,7 +41,7 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
   }
 
-  // Generic fallback
+  // Fallback error
   const statusCode = err.statusCode || (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
   return res.status(statusCode).json({
     success: false,

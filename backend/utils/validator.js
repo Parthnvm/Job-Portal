@@ -1,6 +1,4 @@
-/**
- * Request validation and payload sanitization utilities.
- */
+/** Request validation and sanitization helpers. */
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,9 +27,7 @@ export const sanitizeString = (val, maxLen = 500) => {
   return val.trim().slice(0, maxLen);
 };
 
-/**
- * Filter an object to only contain allowed keys (allowlist protection)
- */
+/** Filters object to allowlisted fields only. */
 export const pickAllowedFields = (obj, allowedKeys = []) => {
   if (!obj || typeof obj !== "object") return {};
   const clean = {};

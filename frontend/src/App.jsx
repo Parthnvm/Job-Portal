@@ -49,7 +49,7 @@ function AppContent() {
     return () => window.removeEventListener("auth:session-expired", onSessionExpired);
   }, []);
 
-  // Fetch current user from /user/me if token exists but user state is uninitialized
+  // Restore user session
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     const savedToken = localStorage.getItem("token");

@@ -1,8 +1,4 @@
-/**
- * Static Demo Jobs Collection
- * Preserves the curated showcase roles across Engineering, Design, Finance,
- * Marketing, Healthcare, Security, Education, and Engineering Ops.
- */
+/** Curated demo roles across industries. */
 
 export const STATIC_DEMO_JOBS = [
   // Engineering

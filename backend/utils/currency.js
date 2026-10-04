@@ -1,19 +1,8 @@
-/**
- * Centralized Currency Conversion & Formatting Utilities (Backend)
- *
- * Provides USD to INR conversion and standard Indian abbreviated currency
- * formatting (₹1L, ₹10L, ₹25L, ₹1Cr, ₹1.5Cr, etc.) for the Indian job market.
- */
+/** Currency conversion and formatting utilities (INR / USD). */
 
 export const USD_TO_INR = Number(process.env.USD_TO_INR) || 83;
 
-/**
- * Converts a numeric or string USD amount to INR.
- * Returns null if input is null, undefined, or invalid.
- *
- * @param {number|string|null|undefined} amount - The amount in USD.
- * @returns {number|null} The converted amount in INR rounded to integer.
- */
+/** Converts USD amount to INR. */
 export function convertUSDToINR(amount) {
   if (amount === null || amount === undefined || amount === "") return null;
 
@@ -33,26 +22,7 @@ export function convertUSDToINR(amount) {
   return Math.round(num * USD_TO_INR);
 }
 
-/**
- * Formats a numeric amount into Indian abbreviated format:
- * Examples:
- *   100000   -> "₹1L"
- *   250000   -> "₹2.5L"
- *   550000   -> "₹5.5L"
- *   1000000  -> "₹10L"
- *   1250000  -> "₹12.5L"
- *   2500000  -> "₹25L"
- *   10000000 -> "₹1Cr"
- *   15000000 -> "₹1.5Cr"
- *   100000000-> "₹10Cr"
- *   35000    -> "₹35k"
- *
- * Preserves ₹ symbol, uses L for Lakhs and Cr for Crores with sensible decimal precision,
- * and eliminates long Indian-number comma strings (₹1,00,000 / ₹10,00,000).
- *
- * @param {number|string|null|undefined} amount - Numeric value in INR.
- * @returns {string} Formatted Indian Rupee string.
- */
+/** Formats number to Indian abbreviated format (₹1L, ₹10L, ₹1Cr). */
 export function formatINR(amount) {
   if (amount === null || amount === undefined || amount === "") return "";
   const num = Number(amount);
@@ -75,7 +45,7 @@ export function formatINR(amount) {
     return `${sign}₹${formattedLakh}L`;
   }
 
-  // 1 Thousand = 1,000 (e.g. 35000 monthly stipend)
+  // 1 Thousand = 1,000
   if (abs >= 1000) {
     const k = abs / 1000;
     const formattedK = Number(k.toFixed(2));
@@ -85,22 +55,11 @@ export function formatINR(amount) {
   return `${sign}₹${abs}`;
 }
 
-/**
- * Parses and converts a salary string if in USD, or formats into L/Cr if in INR.
- * Examples:
- *   "$40,000 - $60,000" -> "₹33.2L - ₹49.8L / yr"
- *   "$140k – $180k"     -> "₹1.16Cr – ₹1.49Cr / yr"
- *   "₹8,00,000 - ₹14,00,000 / yr" -> "₹8L - ₹14L / yr"
- *   "₹35,000 / month Stipend" -> "₹35k / month Stipend"
- *
- * @param {string} salaryStr
- * @returns {string}
- */
+/** Parses and converts salary string to INR format. */
 export function parseAndConvertSalaryString(salaryStr = "") {
   if (!salaryStr || typeof salaryStr !== "string") return salaryStr || "";
 
-  // Check if string is already formatted in INR with L or Cr (e.g. "₹8L - ₹14L / yr", "₹1.5Cr")
-  // and does not contain $ or USD and does not contain raw 5+ digit numbers needing abbreviation
+  // Check if already formatted in INR with L or Cr
   if (!salaryStr.includes("$") && !/\bUSD\b/i.test(salaryStr)) {
     if (/₹\s*\d+(?:\.\d+)?\s*(?:L|Cr|k)\b/i.test(salaryStr) && !/\d{5,}/.test(salaryStr.replace(/,/g, ""))) {
       return salaryStr;
@@ -114,7 +73,7 @@ export function parseAndConvertSalaryString(salaryStr = "") {
   if (hasSuffixYr) defaultSuffix = " / yr";
   else if (hasSuffixMo) defaultSuffix = hasStipend ? " / month Stipend" : " / month";
 
-  // If USD indicated by $ or USD
+  // Handle USD
   if (salaryStr.includes("$") || /\bUSD\b/i.test(salaryStr)) {
     const regex = /\$?\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(k)?/gi;
     const matches = [];
@@ -138,7 +97,7 @@ export function parseAndConvertSalaryString(salaryStr = "") {
     }
   }
 
-  // If INR or contains numbers (e.g. "₹8,00,000 - ₹14,00,000 / yr" or "600000 - 900000")
+  // Handle INR numbers
   const rawNums = salaryStr
     .replace(/,/g, "")
     .match(/\d+(?:\.\d+)?/g)
@@ -156,18 +115,7 @@ export function parseAndConvertSalaryString(salaryStr = "") {
   return salaryStr;
 }
 
-/**
- * Formats a salary range in INR given min, max, and currency code.
- * Ensures min <= max, avoiding inverted ranges.
- * If currency is "USD", amounts are converted first.
- * If currency is "INR", amounts are formatted without double conversion.
- *
- * @param {number|null} min - Minimum salary amount
- * @param {number|null} max - Maximum salary amount
- * @param {string} [currency="INR"] - Currency code ("USD" | "INR" | "")
- * @param {string} [rawDisplay=""] - Fallback display text
- * @returns {string} Formatted salary display in Indian Rupees (₹...L / ₹...Cr).
- */
+/** Formats salary range in INR. */
 export function formatSalaryRangeINR(min, max, currency = "INR", rawDisplay = "") {
   const isUSD = (currency || "").toUpperCase() === "USD";
 
@@ -185,7 +133,6 @@ export function formatSalaryRangeINR(min, max, currency = "INR", rawDisplay = ""
   const convertedMax = numMax !== null ? (isUSD ? convertUSDToINR(numMax) : Math.round(numMax)) : null;
 
   if (convertedMin !== null && convertedMax !== null) {
-    // Ensure minimum salary is never greater than maximum salary
     const finalMin = Math.min(convertedMin, convertedMax);
     const finalMax = Math.max(convertedMin, convertedMax);
     return `${formatINR(finalMin)} - ${formatINR(finalMax)} / yr`;
@@ -200,32 +147,21 @@ export function formatSalaryRangeINR(min, max, currency = "INR", rawDisplay = ""
   return rawDisplay || "";
 }
 
-/**
- * Universal salary formatter for any user-facing UI component.
- * Accepts numbers, strings, null, undefined, ranges.
- * Automatically ensures consistent Indian abbreviated formatting (₹1L, ₹10L, ₹1.5Cr).
- *
- * @param {number|string|null|undefined} salary
- * @param {string} [fallback="Competitive"]
- * @returns {string}
- */
+/** Formats salary for UI display. */
 export function formatSalaryDisplay(salary, fallback = "Competitive") {
   if (salary === null || salary === undefined || salary === "") {
     return fallback;
   }
 
-  // If it's a number (internal INR salary value)
   if (typeof salary === "number") {
     if (isNaN(salary) || salary <= 0) return fallback;
     return `${formatINR(salary)} / yr`;
   }
 
-  // If it's a string
   if (typeof salary === "string") {
     const trimmed = salary.trim();
     if (!trimmed) return fallback;
 
-    // If purely digits
     if (/^\d+$/.test(trimmed)) {
       const num = parseInt(trimmed, 10);
       if (isNaN(num) || num <= 0) return fallback;
@@ -238,12 +174,7 @@ export function formatSalaryDisplay(salary, fallback = "Competitive") {
   return fallback;
 }
 
-/**
- * Extracts a numeric annual salary from a job object or salary string for sorting/filtering.
- *
- * @param {object|number|string} jobOrSalary
- * @returns {number} Numeric annual salary in INR (e.g. 1200000).
- */
+/** Extracts numeric annual salary in INR for sorting. */
 export function getJobNumericSalary(jobOrSalary) {
   if (!jobOrSalary) return 0;
 
@@ -271,15 +202,12 @@ export function getJobNumericSalary(jobOrSalary) {
 
   const str = typeof jobOrSalary === "string" ? jobOrSalary : (jobOrSalary.salaryDisplay || jobOrSalary.salary || "");
   if (typeof str === "string") {
-    // Check for Cr: e.g. ₹1.5Cr
     const crMatch = str.match(/₹?\s*(\d+(?:\.\d+)?)\s*Cr/i);
     if (crMatch) return Math.round(parseFloat(crMatch[1]) * 10000000);
 
-    // Check for L: e.g. ₹14L
     const lMatch = str.match(/₹?\s*(\d+(?:\.\d+)?)\s*L/i);
     if (lMatch) return Math.round(parseFloat(lMatch[1]) * 100000);
 
-    // Check for k: e.g. ₹35k
     const kMatch = str.match(/₹?\s*(\d+(?:\.\d+)?)\s*k/i);
     if (kMatch) return Math.round(parseFloat(kMatch[1]) * 1000);
 

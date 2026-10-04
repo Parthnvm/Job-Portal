@@ -122,7 +122,7 @@ export function ResumeAnalyzerView() {
   const [skillStatusFilter, setSkillStatusFilter] = useState("all");
   const fileInputRef = useRef(null);
 
-  // Auto-load latest saved analysis on mount
+  // Load latest analysis on mount
   useEffect(() => {
     let isMounted = true;
     async function loadLatest() {
@@ -135,7 +135,7 @@ export function ResumeAnalyzerView() {
           setIsCached(true);
         }
       } catch (err) {
-        // Silently continue if no analysis exists yet or unauthenticated
+        // Ignore if absent or unauthenticated
       } finally {
         if (isMounted) setLoadingInitial(false);
       }
@@ -266,7 +266,7 @@ export function ResumeAnalyzerView() {
     ? Object.values(results.skills).reduce((acc, list) => acc + (list?.length || 0), 0)
     : 0;
 
-  // Filter skills by category & status
+  // Filter skills
   const getFilteredSkills = () => {
     if (!results?.skills) return [];
     let items = [];
