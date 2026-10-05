@@ -2,6 +2,7 @@ import axios from "axios";
 import { JobProvider } from "./ExternalJobProvider.js";
 import { extractSkills } from "../utils/skillExtractor.js";
 import { convertUSDToINR, formatSalaryRangeINR } from "../utils/currency.js";
+import { parsePublicationDate } from "../utils/dateParser.js";
 
 const DEFAULT_JOOBLE_BASE_URL = "https://in.jooble.org/api";
 const FALLBACK_JOOBLE_BASE_URL = "https://jooble.org/api";
@@ -9,9 +10,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const RETRY_DELAY_MS = 2_000;
 const JOB_TTL_DAYS = 60;
 
-/**
- * Strips HTML tags and unescapes common entities.
- */
+/** Strips HTML tags and unescapes entities. */
 function cleanText(str = "") {
   if (!str) return "";
   return str
@@ -25,9 +24,7 @@ function cleanText(str = "") {
     .trim();
 }
 
-/**
- * Detects if a job is remote from title, snippet, or location text.
- */
+/** Detects remote keywords in job text. */
 function detectRemote(text = "") {
   const lower = text.toLowerCase();
   return (
@@ -38,9 +35,7 @@ function detectRemote(text = "") {
   );
 }
 
-/**
- * Parses salary range or single number from Jooble salary string (e.g. "₹5,00,000 - ₹8,00,000" or "500000").
- */
+/** Parses salary numbers and currency from salary string. */
 function parseSalary(salaryStr = "") {
   if (!salaryStr) return { salaryMin: null, salaryMax: null, currency: "INR" };
   const numbers = salaryStr
@@ -66,9 +61,7 @@ function parseSalary(salaryStr = "") {
   return { salaryMin, salaryMax, currency };
 }
 
-/**
- * Maps Jooble employment type string to a standard jobType string.
- */
+/** Maps Jooble employment type to standard jobType. */
 function mapJobType(type = "") {
   const lower = type.toLowerCase();
   if (lower.includes("part")) return "Part-Time";
@@ -77,9 +70,7 @@ function mapJobType(type = "") {
   return "Full-Time";
 }
 
-/**
- * Normalizes a raw Jooble job item into the standard NormalizedJob shape.
- */
+/** Normalizes raw Jooble job item to standard schema. */
 function normalizeJoobleJob(item) {
   const cleanTitle = cleanText(item.title || "");
   const cleanSnippet = cleanText(item.snippet || "");
@@ -101,8 +92,9 @@ function normalizeJoobleJob(item) {
 
   const salaryDisplay = formatSalaryRangeINR(salaryMin, salaryMax, "INR", item.salary || "");
 
-  const postedAt = item.updated ? new Date(item.updated) : new Date();
+  const postedAt = parsePublicationDate(item.updated);
   const importedAt = new Date();
+  const refreshedAt = new Date();
   const expiresAt = new Date(Date.now() + JOB_TTL_DAYS * 24 * 60 * 60 * 1_000);
 
   return {
@@ -122,7 +114,7 @@ function normalizeJoobleJob(item) {
     isRemote: detectRemote(combinedText),
     jobType: mapJobType(item.type || ""),
     job_type: mapJobType(item.type || ""),
-    category: item.source || "IT Jobs",
+    category: item.source || "Engineering",
     skills,
     salaryMin,
     salary_min: salaryMin,
@@ -135,6 +127,8 @@ function normalizeJoobleJob(item) {
     posted_date: postedAt,
     importedAt,
     fetched_at: importedAt,
+    refreshedAt,
+    refreshed_at: refreshedAt,
     expiresAt,
   };
 }
@@ -142,9 +136,23 @@ function normalizeJoobleJob(item) {
 export class JoobleJobProvider extends JobProvider {
   constructor() {
     super();
-    this._apiKey = process.env.JOOBLE_API_KEY ? process.env.JOOBLE_API_KEY.trim() : "";
-    this._baseUrl = process.env.JOOBLE_BASE_URL || DEFAULT_JOOBLE_BASE_URL;
     this._rateLimitedUntil = 0;
+  }
+
+  get apiKey() {
+    if (this._apiKey !== undefined) return (this._apiKey || "").trim();
+    return (process.env.JOOBLE_API_KEY || "").trim();
+  }
+  set apiKey(val) {
+    this._apiKey = val;
+  }
+
+  get baseUrl() {
+    if (this._baseUrl !== undefined) return this._baseUrl || DEFAULT_JOOBLE_BASE_URL;
+    return process.env.JOOBLE_BASE_URL || DEFAULT_JOOBLE_BASE_URL;
+  }
+  set baseUrl(val) {
+    this._baseUrl = val;
   }
 
   get providerName() {
@@ -152,13 +160,10 @@ export class JoobleJobProvider extends JobProvider {
   }
 
   isConfigured() {
-    return Boolean(this._apiKey && this._apiKey.length > 0);
+    return Boolean(this.apiKey && this.apiKey.length > 0);
   }
 
-  /**
-   * Search jobs using the Jooble India REST API.
-   * Specification: POST https://in.jooble.org/api/{apiKey} with application/json body.
-   */
+  /** Searches jobs via Jooble REST API. */
   async searchJobs({ keyword = "developer", location = "", page = 1, pageSize = 20 } = {}) {
     if (!this.isConfigured()) {
       console.warn("[Jooble] JOOBLE_API_KEY not configured — skipping fetch.");
@@ -182,7 +187,7 @@ export class JoobleJobProvider extends JobProvider {
       companysearch: false,
     };
 
-    const targetUrl = `${this._baseUrl.replace(/\/+$/, "")}/${this._apiKey}`;
+    const targetUrl = `${this.baseUrl.replace(/\/+$/, "")}/${this.apiKey}`;
     console.log(`[Jooble] Request started: keywords="${payload.keywords}" location="${payload.location}" page=${pageNum}`);
 
     return this._fetchWithRetry(targetUrl, payload);
@@ -225,9 +230,9 @@ export class JoobleJobProvider extends JobProvider {
         return [];
       }
 
-      // If primary endpoint failed with 404 or connection issue on in.jooble.org, try jooble.org fallback once
+      // Fallback endpoint if regional domain fails
       if (attempt === 1 && url.includes("in.jooble.org") && (status === 404 || code === "ENOTFOUND")) {
-        const fallbackUrl = `${FALLBACK_JOOBLE_BASE_URL}/${this._apiKey}`;
+        const fallbackUrl = `${FALLBACK_JOOBLE_BASE_URL}/${this.apiKey}`;
         console.warn(`[Jooble] Regional host failed (${status || code}). Retrying on standard host: ${fallbackUrl}`);
         return this._fetchWithRetry(fallbackUrl, payload, 2);
       }

@@ -14,7 +14,13 @@ import {
   X,
   Check,
   AlertTriangle,
-  UploadCloud
+  UploadCloud,
+  FileText,
+  Download,
+  ExternalLink,
+  Mail,
+  Phone,
+  Search
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -283,6 +289,232 @@ function CompanyProfileView({ company, onUpdate }) {
       </GlassCard>
     </div>;
 }
+
+function ApplicantsListView({
+  jobs,
+  applicants,
+  selectedJobId,
+  onSelectJobId,
+  onUpdateStatus,
+  onViewResume,
+  onDownloadResume,
+  isDark
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filtered = applicants.filter((a) => {
+    const matchesJob = selectedJobId === "All" || a.jobId === selectedJobId;
+    if (!matchesJob) return false;
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    const name = (a.applicant?.fullname || "").toLowerCase();
+    const email = (a.applicant?.email || "").toLowerCase();
+    const skills = Array.isArray(a.applicant?.profile?.skills)
+      ? a.applicant.profile.skills.join(" ").toLowerCase()
+      : "";
+    const jobTitle = (a.jobTitle || "").toLowerCase();
+    return name.includes(term) || email.includes(term) || skills.includes(term) || jobTitle.includes(term);
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Top Filter and Search Bar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "16px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: "0.85rem", color: T.textMid, fontWeight: 500 }}>Filter by Job:</span>
+          <select
+            value={selectedJobId}
+            onChange={(e) => onSelectJobId(e.target.value)}
+            style={{
+              background: isDark ? "#120a2a" : "#ffffff",
+              border: `1px solid ${T.border}`,
+              color: T.text,
+              fontSize: "0.85rem",
+              borderRadius: 8,
+              padding: "8px 32px 8px 14px",
+              fontFamily: T.font,
+              cursor: "pointer",
+              outline: "none",
+              appearance: "none",
+              WebkitAppearance: "none",
+              backgroundPosition: "right 10px center",
+              backgroundSize: "12px",
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239090b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+              backgroundRepeat: "no-repeat"
+            }}
+          >
+            <option value="All">All Jobs ({applicants.length} total applicants)</option>
+            {jobs.map((j) => {
+              const count = applicants.filter((a) => a.jobId === j._id).length;
+              return (
+                <option key={j._id} value={j._id}>
+                  {j.title} ({count} applicants)
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 260 }}>
+          <div style={{ position: "relative", width: "100%" }}>
+            <Search size={16} color={T.textDim} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              type="text"
+              placeholder="Search candidate, email, or skill..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                background: isDark ? "rgba(255,255,255,0.03)" : "#ffffff",
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                padding: "8px 12px 8px 36px",
+                color: T.text,
+                fontSize: "0.85rem",
+                outline: "none",
+                fontFamily: T.font,
+                boxSizing: "border-box"
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Applicants List */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 14 }}>
+          <Users size={40} color={T.textDim} style={{ margin: "0 auto 12px", opacity: 0.6 }} />
+          <h3 style={{ fontSize: "1.1rem", color: T.text, margin: "0 0 6px", fontWeight: 600 }}>No Applicants Found</h3>
+          <p style={{ color: T.textMid, fontSize: "0.85rem", maxWidth: 440, margin: "0 auto" }}>
+            {searchTerm ? "No candidates matched your search criteria." : "Candidates who apply with their verified resumes to your job postings will appear here."}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {filtered.map((app) => {
+            const candidate = app.applicant || {};
+            const cName = candidate.fullname || "Anonymous Candidate";
+            const cInit = cName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+            const appliedDate = new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const resumeFilename = app.resume?.originalName || (candidate.profile?.resumeOriginalName || "Resume.pdf");
+            const resumeSize = app.resume?.size ? `${Math.round(app.resume.size / 1024)} KB` : "";
+            const skills = candidate.profile?.skills || [];
+            const status = app.status?.toLowerCase() || "pending";
+            const statusBg = status === "accepted" ? T.greenDim : status === "rejected" ? T.redDim : "rgba(250,204,21,0.12)";
+            const statusColor = status === "accepted" ? T.green : status === "rejected" ? T.red : "#eab308";
+
+            return (
+              <GlassCard key={app._id} style={{ padding: "24px 28px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+                  {/* Left: Candidate Details */}
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: T.purpleDim, border: `1px solid ${T.purpleL}40`, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL, fontSize: "1.1rem", fontWeight: 700, flexShrink: 0 }}>
+                      {cInit}
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: T.text, margin: 0 }}>{cName}</h3>
+                        <span style={{ fontSize: "0.75rem", padding: "3px 10px", borderRadius: 12, fontWeight: 700, background: statusBg, color: statusColor, textTransform: "capitalize" }}>
+                          {status}
+                        </span>
+                        {app.atsScore !== undefined && app.atsScore !== null && (
+                          <span style={{ fontSize: "0.72rem", background: T.greenDim, color: T.green, border: `1px solid ${T.green}40`, padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>
+                            ATS Match: {app.atsScore}%
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 8, fontSize: "0.82rem", color: T.textMid }}>
+                        <span style={{ fontWeight: 600, color: T.purpleL }}>Role: {app.jobTitle}</span>
+                        {candidate.email && (
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Mail size={13} /> {candidate.email}
+                          </span>
+                        )}
+                        {candidate.phoneNumber && (
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Phone size={13} /> {candidate.phoneNumber}
+                          </span>
+                        )}
+                        <span>Applied: {appliedDate}</span>
+                      </div>
+
+                      {/* Skills List */}
+                      {skills.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+                          {skills.map((s) => (
+                            <span key={s} style={{ fontSize: "0.72rem", padding: "3px 8px", borderRadius: 6, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${T.border}`, color: T.textMid }}>
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Status Workflow Actions */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {status !== "accepted" && (
+                      <button
+                        onClick={() => onUpdateStatus(app._id, "accepted")}
+                        style={{ padding: "8px 16px", background: T.greenDim, border: `1px solid ${T.green}40`, borderRadius: 8, color: T.green, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Check size={14} /> Shortlist
+                      </button>
+                    )}
+                    {status !== "rejected" && (
+                      <button
+                        onClick={() => onUpdateStatus(app._id, "rejected")}
+                        style={{ padding: "8px 16px", background: T.redDim, border: `1px solid ${T.red}40`, borderRadius: 8, color: T.red, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}
+                      >
+                        <X size={14} /> Reject
+                      </button>
+                    )}
+                    {status !== "pending" && (
+                      <button
+                        onClick={() => onUpdateStatus(app._id, "pending")}
+                        style={{ padding: "8px 14px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.textDim, cursor: "pointer", fontSize: "0.8rem", fontWeight: 500 }}
+                      >
+                        Reset Pending
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submitted Resume Box */}
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: T.purpleDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.purpleL }}>
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.9rem", fontWeight: 600, color: T.text, wordBreak: "break-all" }}>
+                        {resumeFilename}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: T.textDim, marginTop: 2 }}>
+                        Verified Snapshot submitted with application {resumeSize && `• ${resumeSize}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button size="sm" variant="outline" onClick={() => onViewResume(app._id)}>
+                      <ExternalLink size={13} style={{ marginRight: 6 }} /> View Resume
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => onDownloadResume(app._id, resumeFilename)}>
+                      <Download size={13} style={{ marginRight: 6 }} /> Download
+                    </Button>
+                  </div>
+                </div>
+              </GlassCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function JobPortalRecruiterView({ onSignOut }) {
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -321,21 +553,33 @@ export function JobPortalRecruiterView({ onSignOut }) {
       if (jobsRes.data.success) {
         const adminJobs = jobsRes.data.jobs || [];
         setJobs(adminJobs);
-        const allApplicants = [];
-        for (const j of adminJobs) {
-          try {
-            const appRes = await API.get(`/application/${j._id}/applicants`);
-            if (appRes.data.success && appRes.data.job?.applications) {
-              appRes.data.job.applications.forEach((app) => {
-                allApplicants.push({
-                  ...app,
-                  jobTitle: j.title,
-                  jobId: j._id
+        let allApplicants = [];
+        try {
+          const batchRes = await API.get("/application/recruiter/all");
+          if (batchRes.data?.success && Array.isArray(batchRes.data.applications)) {
+            allApplicants = batchRes.data.applications.map((app) => ({
+              ...app,
+              jobTitle: app.job?.title || "Unknown Job",
+              jobId: app.job?._id || app.job,
+            }));
+          }
+        } catch (batchErr) {
+          // Fallback to per-job query
+          for (const j of adminJobs) {
+            try {
+              const appRes = await API.get(`/application/${j._id}/applicants`);
+              if (appRes.data.success && appRes.data.job?.applications) {
+                appRes.data.job.applications.forEach((app) => {
+                  allApplicants.push({
+                    ...app,
+                    jobTitle: j.title,
+                    jobId: j._id
+                  });
                 });
-              });
+              }
+            } catch (err) {
+              console.error(`Error fetching applicants for job ${j._id}:`, err);
             }
-          } catch (err) {
-            console.error(`Error fetching applicants for job ${j._id}:`, err);
           }
         }
         allApplicants.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -360,6 +604,34 @@ export function JobPortalRecruiterView({ onSignOut }) {
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+    }
+  };
+
+  const handleViewResume = async (applicationId) => {
+    try {
+      const res = await API.get(`/application/${applicationId}/resume`, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to view resume.");
+    }
+  };
+
+  const handleDownloadResume = async (applicationId, filename) => {
+    try {
+      const res = await API.get(`/application/${applicationId}/resume?download=true`, { responseType: "blob" });
+      const blob = new Blob([res.data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || "applicant_resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to download resume.");
     }
   };
   const handlePostJob = async (e) => {
@@ -470,7 +742,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                   <p style={{ color: T.textMid, margin: 0, fontSize: "0.95rem" }}>Welcome back, {userName}. Here's what's happening with your job postings.</p>
                 </div>
                 <div style={{ display: "flex", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4 }}>
-                  {["Overview", "Active Jobs"].map((t) => <button
+                  {["Overview", "Applicants", "Active Jobs"].map((t) => <button
     key={t}
     onClick={() => setActiveSubTab(t)}
     style={{ padding: "6px 16px", borderRadius: 8, fontSize: "0.85rem", fontWeight: t === activeSubTab ? 600 : 400, background: t === activeSubTab ? T.greenDim : "transparent", color: t === activeSubTab ? T.green : T.textMid, border: "none", cursor: "pointer", transition: "all 0.2s" }}
@@ -492,7 +764,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
                   </div>
 
                   {activeSubTab === "Active Jobs" ? (
-                    // ─── Active Job Postings Grid ──────────────────────────────────
+                    // Active Jobs Grid
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
                       {jobs.length === 0 ? (
                         <div style={{ textAlign: "center", padding: "60px 24px", color: T.textDim, background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, gridColumn: "1 / -1" }}>
@@ -526,8 +798,19 @@ export function JobPortalRecruiterView({ onSignOut }) {
                         })
                       )}
                     </div>
+                  ) : activeSubTab === "Applicants" ? (
+                    <ApplicantsListView
+                      jobs={jobs}
+                      applicants={applicants}
+                      selectedJobId={selectedJobId}
+                      onSelectJobId={setSelectedJobId}
+                      onUpdateStatus={handleUpdateStatus}
+                      onViewResume={handleViewResume}
+                      onDownloadResume={handleDownloadResume}
+                      isDark={isDark}
+                    />
                   ) : (
-                    // ─── Overview Dashboard Layout ───────────────────────────────
+                    // Overview Dashboard
                     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                       {jobs.length === 0 && (
                         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "32px 24px", textAlign: "center" }}>
@@ -660,6 +943,16 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                           <div style={{ fontSize: "0.72rem", color: T.textDim }}>{a.jobTitle}</div>
                                         </div>
                                       </div>
+                                      <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", padding: "4px 8px", borderRadius: 6, margin: "6px 0 10px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
+                                          <FileText size={12} color={T.purpleL} />
+                                          {a.resume?.originalName || (a.applicant?.profile?.resumeOriginalName || "Resume.pdf")}
+                                        </span>
+                                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                          <span onClick={() => handleViewResume(a._id)} style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600 }}>View</span>
+                                          <span onClick={() => handleDownloadResume(a._id, a.resume?.originalName)} style={{ color: T.textDim, cursor: "pointer" }}>⬇</span>
+                                        </div>
+                                      </div>
                                       <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
                                         <button
         onClick={() => handleUpdateStatus(a._id, "accepted")}
@@ -702,6 +995,16 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                         <div>
                                           <div style={{ fontSize: "0.85rem", fontWeight: 600, color: T.text }}>{cName}</div>
                                           <div style={{ fontSize: "0.72rem", color: T.textDim }}>{a.jobTitle}</div>
+                                        </div>
+                                      </div>
+                                      <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", padding: "4px 8px", borderRadius: 6, margin: "6px 0 10px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
+                                          <FileText size={12} color={T.purpleL} />
+                                          {a.resume?.originalName || (a.applicant?.profile?.resumeOriginalName || "Resume.pdf")}
+                                        </span>
+                                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                          <span onClick={() => handleViewResume(a._id)} style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600 }}>View</span>
+                                          <span onClick={() => handleDownloadResume(a._id, a.resume?.originalName)} style={{ color: T.textDim, cursor: "pointer" }}>⬇</span>
                                         </div>
                                       </div>
                                       <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
@@ -748,6 +1051,16 @@ export function JobPortalRecruiterView({ onSignOut }) {
                                           <div style={{ fontSize: "0.72rem", color: T.textDim }}>{a.jobTitle}</div>
                                         </div>
                                       </div>
+                                      <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", padding: "4px 8px", borderRadius: 6, margin: "6px 0 10px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
+                                          <FileText size={12} color={T.purpleL} />
+                                          {a.resume?.originalName || (a.applicant?.profile?.resumeOriginalName || "Resume.pdf")}
+                                        </span>
+                                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                          <span onClick={() => handleViewResume(a._id)} style={{ color: T.purpleL, cursor: "pointer", fontWeight: 600 }}>View</span>
+                                          <span onClick={() => handleDownloadResume(a._id, a.resume?.originalName)} style={{ color: T.textDim, cursor: "pointer" }}>⬇</span>
+                                        </div>
+                                      </div>
                                       <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
                                         <button
         onClick={() => handleUpdateStatus(a._id, "accepted")}
@@ -778,7 +1091,7 @@ export function JobPortalRecruiterView({ onSignOut }) {
       </AnimatePresence>
 
       {
-    /* ─── Post Job Glass Modal ───────────────────────────────────────────── */
+    /* Post Job Modal */
   }
       <AnimatePresence>
         {isPostModalOpen && <div style={{ position: "fixed", inset: 0, zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "rgba(9, 9, 15, 0.75)" : "rgba(15, 23, 42, 0.45)", backdropFilter: "blur(10px)" }}>

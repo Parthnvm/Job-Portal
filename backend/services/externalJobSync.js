@@ -12,7 +12,7 @@ const DEFAULT_KEYWORDS = [
   "product manager",
 ];
 
-const KEYWORD_DELAY_MS = 3_000; // 3 seconds between requests to avoid burst rate limits
+const KEYWORD_DELAY_MS = 3_000; // 3s throttle
 
 function getSyncKeywords() {
   const env = process.env.ADZUNA_SYNC_KEYWORDS;
@@ -22,9 +22,7 @@ function getSyncKeywords() {
 
 const PAGE_SIZE = parseInt(process.env.ADZUNA_RESULTS_PER_PAGE) || 20;
 
-/**
- * Upserts a single normalized job into MongoDB.
- */
+/** Upserts normalized job into MongoDB. */
 async function upsertJob(job) {
   try {
     const filter = { provider: job.provider, externalId: job.externalId };
@@ -46,6 +44,9 @@ async function upsertJob(job) {
         salaryDisplay: job.salaryDisplay,
         postedAt: job.postedAt,
         expiresAt: job.expiresAt,
+        refreshedAt: new Date(),
+      },
+      $setOnInsert: {
         importedAt: new Date(),
       },
     };
@@ -54,21 +55,18 @@ async function upsertJob(job) {
 
     if (result.upsertedCount > 0) return "inserted";
     if (result.modifiedCount > 0) return "updated";
-    return "updated";
+    return "unchanged";
   } catch (error) {
-    if (error.code === 11000) return "updated";
+    if (error.code === 11000) return "unchanged";
     console.error(`[externalJobSync] Error upserting job "${job.externalId}":`, error.message);
     return "error";
   }
 }
 
-/**
- * Runs a controlled sync cycle with rate limit checks and keyword throttling.
- */
+/** Runs external jobs sync cycle. */
 export async function syncExternalJobs({ force = false } = {}) {
   console.log("[externalJobSync] Starting sync cycle...");
 
-  // Check sync state to avoid double-running or restart stampedes
   let state = await SyncState.findOne({ key: "external_job_sync" });
   if (!state) {
     state = await SyncState.create({ key: "external_job_sync" });
@@ -94,6 +92,7 @@ export async function syncExternalJobs({ force = false } = {}) {
   const keywords = getSyncKeywords();
   let inserted = 0;
   let updated = 0;
+  let unchanged = 0;
   let errors = 0;
 
   const providers = jobProviderManager.getAllProviders().filter((p) => p.isConfigured());
@@ -108,7 +107,7 @@ export async function syncExternalJobs({ force = false } = {}) {
     for (const provider of providers) {
       const providerName = provider.providerName;
 
-      // Check rate limit budget
+      // Rate limit budget check
       const budget = await RateLimiter.checkLimit(providerName);
       if (!budget.allowed) {
         console.warn(`[externalJobSync] Skipping keyword "${keyword}" on ${providerName}: ${budget.reason}`);
@@ -124,6 +123,7 @@ export async function syncExternalJobs({ force = false } = {}) {
           const outcome = await upsertJob(job);
           if (outcome === "inserted") inserted++;
           else if (outcome === "updated") updated++;
+          else if (outcome === "unchanged") unchanged++;
           else errors++;
         }
       } catch (err) {
@@ -131,7 +131,7 @@ export async function syncExternalJobs({ force = false } = {}) {
         errors++;
       }
 
-      // Throttle between requests to strictly respect rate limits
+      // Delay between queries
       await new Promise((resolve) => setTimeout(resolve, KEYWORD_DELAY_MS));
     }
   }
@@ -143,25 +143,22 @@ export async function syncExternalJobs({ force = false } = {}) {
       $set: {
         status: "idle",
         lastSyncCompletedAt: completedAt,
-        lastStats: { inserted, updated, errors },
+        lastStats: { inserted, updated, unchanged, errors },
       },
     }
   );
 
   console.log(
-    `[externalJobSync] Sync complete. inserted=${inserted} updated=${updated} errors=${errors}`
+    `[externalJobSync] Sync complete. inserted=${inserted} updated=${updated} unchanged=${unchanged} errors=${errors}`
   );
-  return { inserted, updated, errors, skipped: false };
+  return { inserted, updated, unchanged, errors, skipped: false };
 }
 
-/**
- * Starts the recurring sync loop.
- */
+/** Starts recurring sync interval. */
 export function scheduleSyncLoop(intervalMs) {
   const interval = intervalMs || parseInt(process.env.EXTERNAL_JOB_SYNC_INTERVAL_MS) || 6 * 60 * 60 * 1_000;
   console.log(`[externalJobSync] Scheduling sync loop every ${Math.round(interval / 60_000)} minutes.`);
 
-  // Safe startup sync (will check if recent sync occurred)
   syncExternalJobs({ force: false }).catch((err) =>
     console.error("[externalJobSync] Startup sync failed:", err.message)
   );

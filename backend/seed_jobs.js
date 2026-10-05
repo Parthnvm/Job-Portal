@@ -100,7 +100,7 @@ async function seed() {
     await Job.deleteMany({});
     console.log("Cleared jobs collection.");
 
-    // We can keep existing companies or seed new ones. Let's register seed companies if they don't exist.
+    // Register seed companies if needed
     const companyMap = new Map();
     for (const comp of SEED_COMPANIES) {
       let company = await Company.findOne({ name: comp.name });

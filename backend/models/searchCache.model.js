@@ -39,7 +39,7 @@ const searchCacheSchema = new mongoose.Schema(
         type: String,
       },
     ],
-    // Cache TTL: 2 hours by default
+    // 2-hour TTL
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 2 * 60 * 60 * 1000),

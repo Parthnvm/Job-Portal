@@ -1,27 +1,18 @@
-/**
- * Strips tracking parameters, UTM tags, and anchors from URLs to compare canonical job links.
- * @param {string} rawUrl
- * @returns {string}
- */
+/** Strips tracking params and anchors from URLs. */
 export function cleanUrl(rawUrl = "") {
   if (!rawUrl) return "";
   try {
     const parsed = new URL(rawUrl);
-    // Remove UTM and common analytics parameters
     const paramsToStrip = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "se", "v", "ref"];
     paramsToStrip.forEach((p) => parsed.searchParams.delete(p));
-    // Remove hash/anchor
     parsed.hash = "";
     return (parsed.origin + parsed.pathname).toLowerCase().replace(/\/+$/, "");
   } catch {
-    // If URL parsing fails, simple strip
     return rawUrl.split("?")[0].split("#")[0].toLowerCase().replace(/\/+$/, "");
   }
 }
 
-/**
- * Normalizes text for comparison (lowercase, trimmed, strip non-alphanumeric except spaces).
- */
+/** Normalizes text (lowercase, trimmed, alphanumeric). */
 export function normalizeText(text = "") {
   return (text || "")
     .toLowerCase()
@@ -30,9 +21,7 @@ export function normalizeText(text = "") {
     .trim();
 }
 
-/**
- * Strips common corporate entity suffixes for robust company matching.
- */
+/** Strips corporate entity suffixes for company matching. */
 export function normalizeCompany(name = "") {
   let cleaned = normalizeText(name);
   const suffixes = [
@@ -57,17 +46,7 @@ export function normalizeCompany(name = "") {
   return cleaned.replace(/\s+/g, " ").trim();
 }
 
-/**
- * Deduplicates a list of normalized jobs.
- *
- * Rules:
- * 1. Provider-level identity: (provider + externalId) must be unique.
- * 2. Cross-provider identity: matched on canonical applyUrl OR conservative combination
- *    of normalized (title + company + location).
- *
- * @param {import('../providers/ExternalJobProvider.js').NormalizedJob[]} jobs
- * @returns {import('../providers/ExternalJobProvider.js').NormalizedJob[]}
- */
+/** Deduplicates jobs by provider ID, canonical URL, or title/company/location. */
 export function deduplicateJobs(jobs = []) {
   if (!Array.isArray(jobs) || jobs.length === 0) return [];
 
@@ -80,27 +59,29 @@ export function deduplicateJobs(jobs = []) {
     if (!job) continue;
 
     const provider = (job.provider || job.source || "").toLowerCase();
-    const externalId = String(job.externalId || job.external_id || "");
+    const id = String(job._id || job.id || "");
+    const externalId = String(job.externalId || job.external_id || id);
 
-    // 1. Provider-level uniqueness
-    const providerKey = `${provider}:${externalId}`;
-    if (provider && externalId && seenProviderIds.has(providerKey)) {
-      continue;
-    }
-    if (providerKey) {
+    // 1. Provider ID
+    if (provider && externalId) {
+      const providerKey = `${provider}:${externalId}`;
+      if (seenProviderIds.has(providerKey)) {
+        continue;
+      }
       seenProviderIds.add(providerKey);
     }
 
-    // 2. Canonical URL uniqueness
+    // 2. Canonical URL
     const url = job.externalUrl || job.apply_url || job.source_url || "";
     const canonicalUrl = cleanUrl(url);
     if (canonicalUrl && seenCanonicalUrls.has(canonicalUrl)) {
       continue;
     }
 
-    // 3. Conservative cross-provider fingerprint
+    // 3. Conservative fingerprint
+    const compName = job.companyName || (typeof job.company === "object" ? job.company?.name : job.company) || "";
     const normTitle = normalizeText(job.title);
-    const normComp = normalizeCompany(job.companyName || job.company);
+    const normComp = normalizeCompany(compName);
     const normLoc = normalizeText(job.location);
 
     if (normTitle && normComp && normLoc) {

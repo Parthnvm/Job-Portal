@@ -117,38 +117,37 @@ export function ResumeAnalyzerView() {
   const [analyzedAt, setAnalyzedAt] = useState(null);
   const [isCached, setIsCached] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(false);
   const [activeSkillCategory, setActiveSkillCategory] = useState("all");
   const [skillStatusFilter, setSkillStatusFilter] = useState("all");
   const fileInputRef = useRef(null);
 
-  // Auto-load latest saved analysis on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function loadLatest() {
-      try {
-        const res = await API.get("/user/resume-analysis/latest");
-        if (isMounted && res.data.success && res.data.analysis) {
-          setResults(res.data.analysis);
-          setActiveFileName(res.data.fileName || "Uploaded Resume");
-          setAnalyzedAt(res.data.createdAt);
-          setIsCached(true);
-        }
-      } catch (err) {
-        // Silently continue if no analysis exists yet or unauthenticated
-      } finally {
-        if (isMounted) setLoadingInitial(false);
-      }
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt"];
+
+  const validateResumeFile = (selected) => {
+    if (!selected) return null;
+    const ext = selected.name ? selected.name.slice(selected.name.lastIndexOf(".")).toLowerCase() : "";
+    if (ext && !ALLOWED_EXTENSIONS.includes(ext)) {
+      return "Unsupported file format. Please upload a PDF, DOC, DOCX, or TXT resume.";
     }
-    loadLatest();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (selected.size > MAX_FILE_SIZE) {
+      const sizeMB = (selected.size / (1024 * 1024)).toFixed(1);
+      return `Selected file is too large (${sizeMB}MB). Maximum allowed size is 5MB. Please choose a smaller file.`;
+    }
+    return null;
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
+      const error = validateResumeFile(selected);
+      if (error) {
+        setErrorMsg(error);
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       setFile(selected);
       setErrorMsg("");
     }
@@ -158,6 +157,13 @@ export function ResumeAnalyzerView() {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const selected = e.dataTransfer.files[0];
+      const error = validateResumeFile(selected);
+      if (error) {
+        setErrorMsg(error);
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       setFile(selected);
       setErrorMsg("");
     }
@@ -215,7 +221,9 @@ export function ResumeAnalyzerView() {
     } catch (err) {
       console.error("[ResumeAnalyzerView error]:", err);
       const serverMsg = err.response?.data?.message || err.message;
-      if (err.response?.status === 429) {
+      if (err.response?.status === 413) {
+        setErrorMsg("Uploaded resume exceeds the maximum 5MB limit. Please upload a smaller file.");
+      } else if (err.response?.status === 429) {
         setErrorMsg("Groq AI service rate limit reached. Please wait a few moments and try again.");
       } else if (err.response?.status === 503) {
         setErrorMsg(serverMsg || "Groq AI service is not configured on the server.");
@@ -234,7 +242,7 @@ export function ResumeAnalyzerView() {
     ? Object.values(results.skills).reduce((acc, list) => acc + (list?.length || 0), 0)
     : 0;
 
-  // Filter skills by category & status
+  // Filter skills
   const getFilteredSkills = () => {
     if (!results?.skills) return [];
     let items = [];

@@ -1,8 +1,6 @@
 import { RateLimitRecord } from "../models/rateLimit.model.js";
 
-/**
- * Adzuna Official Quotas
- */
+// Provider quotas
 const PROVIDER_LIMITS = {
   adzuna: {
     minute: 25,
@@ -18,8 +16,8 @@ const PROVIDER_LIMITS = {
   },
 };
 
-// In-memory sliding window for the current minute
-const minuteBuckets = new Map(); // provider -> array of timestamps
+// In-memory sliding window for minute quota
+const minuteBuckets = new Map();
 
 function cleanMinuteBucket(provider) {
   const now = Date.now();
@@ -51,15 +49,11 @@ function getMonthKey(provider, date = new Date()) {
 }
 
 export class RateLimiter {
-  /**
-   * Check whether a request can be made to the given provider.
-   * @param {string} provider - "adzuna" | "jooble"
-   * @returns {Promise<{ allowed: boolean, reason?: string, currentUsage: object }>}
-   */
+  /** Checks if request is allowed for provider. */
   static async checkLimit(provider = "adzuna") {
     const limits = PROVIDER_LIMITS[provider] || PROVIDER_LIMITS.adzuna;
 
-    // 1. Minute check (in-memory sliding window)
+    // Minute check
     const minuteHits = cleanMinuteBucket(provider);
     if (minuteHits >= limits.minute) {
       console.warn(`[RateLimiter] [${provider}] Minute limit reached (${minuteHits}/${limits.minute}).`);
@@ -70,7 +64,7 @@ export class RateLimiter {
       };
     }
 
-    // 2. Day check (MongoDB backed)
+    // Daily check via MongoDB
     try {
       const dayKey = getDayKey(provider);
       const dayRecord = await RateLimitRecord.findOne({ periodKey: dayKey }).lean();
@@ -90,7 +84,6 @@ export class RateLimiter {
         currentUsage: { minute: minuteHits, day: dayHits },
       };
     } catch (err) {
-      // If DB error, allow request based on in-memory minute check
       return {
         allowed: true,
         currentUsage: { minute: minuteHits },
@@ -98,26 +91,21 @@ export class RateLimiter {
     }
   }
 
-  /**
-   * Records a request made to the provider.
-   * @param {string} provider - "adzuna" | "jooble"
-   */
+  /** Records API request hit. */
   static async recordHit(provider = "adzuna") {
-    // 1. In-memory minute bucket
     const bucket = minuteBuckets.get(provider) || [];
     bucket.push(Date.now());
     minuteBuckets.set(provider, bucket);
 
-    // 2. Persist to MongoDB
     try {
       const now = new Date();
       const dayKey = getDayKey(provider, now);
       const weekKey = getWeekKey(provider, now);
       const monthKey = getMonthKey(provider, now);
 
-      const dayExpires = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days
-      const weekExpires = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 14 days
-      const monthExpires = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000); // 60 days
+      const dayExpires = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+      const weekExpires = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const monthExpires = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
       await Promise.allSettled([
         RateLimitRecord.updateOne(
@@ -141,9 +129,7 @@ export class RateLimiter {
     }
   }
 
-  /**
-   * Resets minute bucket (used in tests).
-   */
+  /** Resets minute bucket for testing. */
   static _resetMinuteBucket(provider = "adzuna") {
     minuteBuckets.set(provider, []);
   }

@@ -7,21 +7,14 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-oss-120b";
 const FALLBACK_MODEL = "llama-3.3-70b-versatile";
 
-// In-flight request map to prevent duplicate concurrent calls for the same resume hash
+// Deduplicates concurrent calls for identical resume hash
 const inFlightRequests = new Map();
 
-/**
- * Sleeps for a given duration with optional jitter.
- * @param {number} ms
- * @returns {Promise<void>}
- */
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Service to perform structured AI Resume Analysis via Groq.
- */
+/** Structured AI Resume Analysis via Groq. */
 export class GroqResumeAnalyzerService {
   constructor(options = {}) {
     this.apiKey = options.apiKey || process.env.GROQ_API_KEY || "";
@@ -31,22 +24,12 @@ export class GroqResumeAnalyzerService {
     this.httpClient = options.httpClient || axios;
   }
 
-  /**
-   * Checks if the Groq service has an API key configured.
-   * @returns {boolean}
-   */
+  /** Checks if Groq API key is configured. */
   isConfigured() {
     return Boolean(this.apiKey && this.apiKey.trim().length > 0);
   }
 
-  /**
-   * Analyzes resume text with Groq using Structured Outputs and rate-limit resilience.
-   * Deduplicates concurrent in-flight requests for the same resume text/hash.
-   * Falls back gracefully to intelligent local heuristic extraction if no API key is provided.
-   * @param {string} resumeText - Normalized resume text
-   * @param {string} [resumeHash] - Deterministic SHA256 hash
-   * @returns {Promise<{ analysis: object, modelUsed: string, usage: object }>}
-   */
+  /** Analyzes resume text with Groq or local heuristic fallback. */
   async analyze(resumeText, resumeHash = "") {
     if (!resumeText || typeof resumeText !== "string" || resumeText.length < 50) {
       throw new Error("Resume content is insufficient for analysis (minimum 50 characters required).");
@@ -62,7 +45,7 @@ export class GroqResumeAnalyzerService {
       };
     }
 
-    // In-flight deduplication: if an identical analysis is already processing, join its promise
+    // Join in-flight promise if duplicate request is active
     if (resumeHash && inFlightRequests.has(resumeHash)) {
       return inFlightRequests.get(resumeHash);
     }
@@ -81,10 +64,7 @@ export class GroqResumeAnalyzerService {
     return promise;
   }
 
-  /**
-   * Internal execution with retry logic for rate limits (429) and transient server errors.
-   * @private
-   */
+  /** Execution with retries for rate limits and server errors. */
   async _executeWithRetry(resumeText) {
     const { systemPrompt, userPrompt } = buildAnalyzerPrompts(resumeText);
     let lastError = null;
@@ -110,7 +90,7 @@ export class GroqResumeAnalyzerService {
             "Content-Type": "application/json",
             Authorization: `Bearer ${this.apiKey}`,
           },
-          timeout: 60000, // 60 seconds timeout
+          timeout: 60000,
         });
 
         const choice = response.data?.choices?.[0];
@@ -127,7 +107,6 @@ export class GroqResumeAnalyzerService {
           throw new Error(`Failed to parse Groq response as JSON: ${parseErr.message}`);
         }
 
-        // Validate returned JSON against schema
         const validation = validateAnalysis(parsedJson);
         if (!validation.valid) {
           console.warn("Groq response validation warnings:", validation.errors);
@@ -150,7 +129,7 @@ export class GroqResumeAnalyzerService {
         const headers = err.response?.headers || {};
         const errorData = err.response?.data?.error;
 
-        // Check for model not found / deprecated error -> fallback to secondary model
+        // Model fallback
         if (status === 400 || status === 404) {
           const errMsg = String(errorData?.message || "").toLowerCase();
           if (errMsg.includes("model") && currentModel !== this.fallbackModel) {
@@ -160,14 +139,13 @@ export class GroqResumeAnalyzerService {
           }
         }
 
-        // Handle Rate Limits (HTTP 429)
+        // Rate limit (429) backoff
         if (status === 429) {
           const retryAfterSec = parseInt(headers["retry-after"], 10);
           let delayMs = !isNaN(retryAfterSec) && retryAfterSec > 0
             ? retryAfterSec * 1000
             : Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 500);
 
-          // Bound delay to max 12 seconds per retry
           delayMs = Math.min(delayMs, 12000);
 
           if (attempt < this.maxRetries) {
@@ -182,7 +160,7 @@ export class GroqResumeAnalyzerService {
           }
         }
 
-        // Handle transient 5xx server errors
+        // 5xx transient error retry
         if (status >= 500 && status < 600 && attempt < this.maxRetries) {
           const delayMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 400);
           console.warn(`[Groq AI] Server error (${status}). Retrying in ${delayMs}ms...`);
@@ -190,7 +168,6 @@ export class GroqResumeAnalyzerService {
           continue;
         }
 
-        // Non-retryable error
         break;
       }
     }
@@ -200,5 +177,5 @@ export class GroqResumeAnalyzerService {
   }
 }
 
-// Export singleton instance
+// Global singleton instance
 export const groqResumeAnalyzer = new GroqResumeAnalyzerService();

@@ -1,13 +1,6 @@
 import { validateAnalysis } from "../utils/analysisValidator.js";
 
-/**
- * Intelligent local resume analyzer fallback.
- * Used when GROQ_API_KEY is not configured or as an offline resilient parser.
- * Accurately detects skills, experience levels, metrics, gaps, and job recommendations.
- *
- * @param {string} resumeText
- * @returns {object} validated analysis structure
- */
+/** Local heuristic resume analyzer fallback. */
 export function generateLocalResumeAnalysis(resumeText = "") {
   const text = resumeText || "";
   const lower = text.toLowerCase();

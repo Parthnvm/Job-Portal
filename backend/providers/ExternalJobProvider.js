@@ -1,70 +1,31 @@
-/**
- * JobProvider — Abstract Base Interface
- *
- * All external job providers (Adzuna, Jooble, etc.) must implement this interface.
- * To add a new provider:
- * 1. Extend `JobProvider`.
- * 2. Implement `providerName`, `isConfigured()`, `searchJobs()`, `normalizeJob()`, and `handleError()`.
- * 3. Register the provider in `JobProviderManager`.
- *
- * @abstract
- */
+/** Abstract base interface for external job providers. */
 export class JobProvider {
-  /**
-   * The stable string identifier for this provider (e.g. "adzuna", "jooble").
-   * Used as the `provider` field in database models.
-   * @returns {string}
-   */
+  /** Provider identifier (e.g. "adzuna", "jooble"). */
   get providerName() {
     throw new Error(`${this.constructor.name} must implement get providerName()`);
   }
 
-  /**
-   * Check whether this provider has required credentials configured in the environment.
-   * @returns {boolean}
-   */
+  /** Checks if provider credentials are configured in environment. */
   isConfigured() {
     throw new Error(`${this.constructor.name} must implement isConfigured()`);
   }
 
-  /**
-   * Search jobs from the external provider with normalized parameters.
-   *
-   * @param {Object} params
-   * @param {string} [params.keyword]   - Search keyword / job title (e.g. "software developer")
-   * @param {string} [params.location]  - Location filter (e.g. "Pune", "Mumbai")
-   * @param {number} [params.page=1]    - 1-based page number
-   * @param {number} [params.pageSize=20] - Number of results per page
-   * @returns {Promise<NormalizedJob[]>}
-   */
+  /** Searches jobs from external provider. */
   async searchJobs({ keyword = "", location = "", page = 1, pageSize = 20 } = {}) {
     throw new Error(`${this.constructor.name} must implement searchJobs()`);
   }
 
-  /**
-   * Backward-compatible alias for searchJobs.
-   */
+  /** Alias for searchJobs. */
   async fetchJobs(params) {
     return this.searchJobs(params);
   }
 
-  /**
-   * Normalizes a single provider-specific raw job into the standard NormalizedJob format.
-   *
-   * @param {Object} rawJob - Raw result item from provider
-   * @returns {NormalizedJob}
-   */
+  /** Normalizes raw provider job to standard schema. */
   normalizeJob(rawJob) {
     throw new Error(`${this.constructor.name} must implement normalizeJob()`);
   }
 
-  /**
-   * Handles errors from this provider gracefully with sanitized logging.
-   *
-   * @param {Error} error - Caught error
-   * @param {string} context - Action description (e.g., "searchJobs")
-   * @returns {NormalizedJob[]} - Safe fallback empty list
-   */
+  /** Handles provider errors with formatted logging. */
   handleError(error, context = "fetch") {
     const status = error.response?.status;
     const name = this.providerName.toUpperCase();
@@ -92,34 +53,21 @@ export const ExternalJobProvider = JobProvider;
 
 /**
  * @typedef {Object} NormalizedJob
- * @property {string}      provider       - Provider identifier ("adzuna" | "jooble")
- * @property {string}      source         - Alias for provider
- * @property {string}      externalId     - Unique ID from provider
- * @property {string}      external_id    - Alias for externalId
- * @property {string}      externalUrl    - Original posting URL
- * @property {string}      apply_url      - Alias for externalUrl
- * @property {string}      source_url     - Alias for externalUrl
- * @property {string}      title          - Job title
- * @property {string}      description    - Clean job description / snippet
- * @property {string}      companyName    - Employer name
- * @property {string}      company        - Alias for companyName
- * @property {string}      location       - Formatted location
- * @property {string}      locationRaw    - Raw provider location string
- * @property {boolean}     isRemote       - Remote position indicator
- * @property {string}      jobType        - Employment type (Full-Time, Contract, etc.)
- * @property {string}      job_type       - Alias for jobType
- * @property {string}      category       - Job category / industry
- * @property {string[]}    skills         - List of recognized tech skills
- * @property {number|null} salaryMin      - Minimum salary threshold (number)
- * @property {number|null} salary_min     - Alias for salaryMin
- * @property {number|null} salaryMax      - Maximum salary threshold (number)
- * @property {number|null} salary_max     - Alias for salaryMax
- * @property {string}      salaryCurrency - ISO currency code ("INR")
- * @property {string}      salary_currency - Alias for salaryCurrency
- * @property {string}      salaryDisplay  - Human-readable salary range string
- * @property {Date|null}   postedAt       - When the job was posted
- * @property {Date|null}   posted_date    - Alias for postedAt
- * @property {Date}        importedAt     - When normalized by system
- * @property {Date}        fetched_at     - Alias for importedAt
- * @property {Date}        expiresAt      - Record expiration date
+ * @property {string} provider
+ * @property {string} externalId
+ * @property {string} externalUrl
+ * @property {string} title
+ * @property {string} description
+ * @property {string} companyName
+ * @property {string} location
+ * @property {boolean} isRemote
+ * @property {string} jobType
+ * @property {string[]} skills
+ * @property {number|null} salaryMin
+ * @property {number|null} salaryMax
+ * @property {string} salaryCurrency
+ * @property {string} salaryDisplay
+ * @property {Date|null} postedAt
+ * @property {Date} importedAt
+ * @property {Date} expiresAt
  */

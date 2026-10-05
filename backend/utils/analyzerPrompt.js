@@ -1,8 +1,4 @@
-/**
- * JSON Schema definition for Groq Structured Outputs.
- * Conforms to JSON Schema (draft-07 / OpenAI strict mode compatible).
- * In strict mode: all object schemas require 'additionalProperties: false' and all properties in 'required'.
- */
+/** JSON Schema for Groq Structured Outputs. */
 export const RESUME_ANALYZER_JSON_SCHEMA = {
   name: "resume_analysis",
   strict: true,
@@ -311,15 +307,7 @@ export const RESUME_ANALYZER_JSON_SCHEMA = {
   }
 };
 
-/**
- * Builds the strict system prompt and user message for the Groq AI Resume Analyzer.
- * Incorporates:
- * - Anti-hallucination directives
- * - Anti-prompt-injection boundaries
- * - Evidence requirement
- * @param {string} resumeText
- * @returns {{ systemPrompt: string, userPrompt: string }}
- */
+/** Builds system and user prompts for Groq resume analysis. */
 export function buildAnalyzerPrompts(resumeText = "") {
   const systemPrompt = `You are an elite, highly rigorous Technical Resume Auditor and Career Intelligence Engine.
 Your analysis must be 100% EVIDENCE-BASED, OBJECTIVE, and SPECIFIC to the provided resume text.

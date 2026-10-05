@@ -7,7 +7,7 @@ const rateLimitRecordSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // Period key format: provider:minute:YYYY-MM-DDTHH:mm or provider:day:YYYY-MM-DD or provider:month:YYYY-MM
+    // Period key
     periodKey: {
       type: String,
       required: true,
