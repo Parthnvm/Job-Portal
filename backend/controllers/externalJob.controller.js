@@ -113,10 +113,25 @@ export const getExternalJobById = async (req, res) => {
       });
     }
 
+    let description = job.description || "";
+    // If description is truncated, attempt to fetch full description
+    if (description.endsWith("…") || description.endsWith("...") || description.length <= 500) {
+      try {
+        const { enrichJobDescription } = await import("../services/jobDescriptionEnricher.js");
+        const fullDesc = await enrichJobDescription(job);
+        if (fullDesc) {
+          description = fullDesc;
+        }
+      } catch {
+        // Fall back to existing description
+      }
+    }
+
     const formattedJob = {
       ...job,
       id: String(job._id),
       _id: String(job._id),
+      description,
       source: job.provider,
       external_id: job.externalId,
       company: job.companyName,

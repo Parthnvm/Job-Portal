@@ -29,6 +29,7 @@ import { calculateATSScore, extractJobSkills, extractUserSkills } from "./utils/
 import { formatRelativeTime } from "./utils/dateParser";
 import API from "./services/api";
 import { useTheme, ThemeToggle, T } from "./context/ThemeContext";
+import JobDescriptionMarkup from "./components/JobDescriptionMarkup";
 
 function Tag({ children, color, textColor }) {
   const { isDark } = useTheme();
@@ -631,6 +632,7 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   const [linkError, setLinkError] = useState("");
   const [linkSuccess, setLinkSuccess] = useState("");
   const [resumeAnalysis, setResumeAnalysis] = useState(null);
+  const [enrichingDesc, setEnrichingDesc] = useState(false);
   const abortControllerRef = useRef(null);
 
   const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
@@ -981,6 +983,34 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
   };
 
   const hasAppliedToActiveJob = activeJob && applications.some((app) => app.job?._id === activeJob._id || app.job === activeJob._id);
+
+  // Auto-fetch complete job description for external jobs if snippet is truncated
+  useEffect(() => {
+    if (!activeJob?.isExternal) return;
+    const desc = activeJob.description || "";
+    const isTruncated = desc.endsWith("…") || desc.endsWith("...") || desc.length <= 500;
+    const targetId = activeJob._id || activeJob.id;
+    if (isTruncated && targetId) {
+      setEnrichingDesc(true);
+      API.get(`/external-jobs/${targetId}`)
+        .then((res) => {
+          if (res.data?.success && res.data.job?.description && res.data.job.description.length > desc.length) {
+            setJobs((prevJobs) =>
+              prevJobs.map((j) =>
+                (j._id === targetId || j.id === targetId)
+                  ? { ...j, description: res.data.job.description }
+                  : j
+              )
+            );
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          setEnrichingDesc(false);
+        });
+    }
+  }, [activeJob?._id, activeJob?.id]);
+
   const isJobsTab = activeTab === "Browse Jobs" || activeTab === "Saved";
 
   return <div className={isJobsTab ? "jobs-page-container" : ""} style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: T.bg, color: T.text }}>
@@ -1641,9 +1671,48 @@ export function JobPortalApplicantView({ onSignOut, initialJobId = null, onJobCo
 
                     <div style={{ height: 1, background: T.border, marginBottom: 24 }} />
 
-                    <div style={{ color: T.textMid, fontSize: "0.9rem", lineHeight: 1.7 }}>
-                      <h3 style={{ fontSize: "1rem", color: T.text, fontWeight: 600, margin: "0 0 12px" }}>About the role</h3>
-                      <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{activeJob.description || "No detailed description available for this position. Please visit the provider website for full details."}</p>
+                    <div style={{ color: T.textMid, fontSize: "0.92rem", lineHeight: 1.75 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                        <h3 style={{ fontSize: "1.05rem", color: T.text, fontWeight: 700, margin: 0 }}>About the role</h3>
+                        {enrichingDesc && (
+                          <span style={{ fontSize: "0.75rem", color: T.purpleL, display: "inline-flex", alignItems: "center", gap: 6, background: T.purpleDim, padding: "3px 10px", borderRadius: 12 }}>
+                            <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⟳</motion.span>
+                            Loading full job description...
+                          </span>
+                        )}
+                      </div>
+                      <JobDescriptionMarkup content={activeJob.description} />
+
+                      {activeJob.isExternal && (activeJob.externalUrl || activeJob.apply_url) && (
+                        <div style={{ marginTop: 28, padding: "16px 20px", borderRadius: 14, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: "0.88rem", fontWeight: 600, color: T.text }}>Official Job Posting</div>
+                            <div style={{ fontSize: "0.75rem", color: T.textDim }}>Direct from {activeJob.provider === "jooble" ? "Jooble India" : (activeJob.provider === "adzuna" ? "Adzuna India" : "Partner")}</div>
+                          </div>
+                          <a
+                            href={activeJob.externalUrl || activeJob.apply_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontSize: "0.82rem",
+                              fontWeight: 600,
+                              color: T.purpleL,
+                              textDecoration: "none",
+                              padding: "8px 16px",
+                              borderRadius: 10,
+                              background: T.purpleDim,
+                              border: `1px solid ${T.purpleL}40`,
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            <span>View Source Listing</span>
+                            <ExternalLink size={14} />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div> : <div className="jobs-right-panel" style={{ flex: "1 1 60%", height: "100%", minHeight: 0, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", color: T.textDim, overflowY: "auto" }}>

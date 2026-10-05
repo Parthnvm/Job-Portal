@@ -1,6 +1,7 @@
 /** ATS skills matching engine. */
 
 export const KNOWN_TECH_SKILLS = [
+  // Software, Web, Mobile & Cloud
   "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", ".NET", "PHP", "Ruby", "Go", "Rust", "Swift", "Kotlin", "Scala", "C",
   "React", "React Native", "Angular", "Vue", "Next.js", "Node.js", "Express", "Django", "Flask",
   "FastAPI", "Spring Boot", "Laravel", "HTML", "CSS", "Tailwind CSS", "Bootstrap", "Redux", "Storybook",
@@ -9,7 +10,25 @@ export const KNOWN_TECH_SKILLS = [
   "REST API", "GraphQL", "Microservices", "Kafka", "RabbitMQ", "Machine Learning", "Deep Learning",
   "Data Science", "Pandas", "NumPy", "TensorFlow", "PyTorch", "NLP", "Computer Vision",
   "Tableau", "Power BI", "Excel", "Figma", "UI/UX", "Prototyping", "Interaction Design", "Lottie",
-  "Agile", "Scrum", "Jira", "Unit Testing", "Jest", "Cypress", "Selenium", "Cybersecurity", "Zero Trust"
+  "Agile", "Scrum", "Jira", "Unit Testing", "Jest", "Cypress", "Selenium", "Cybersecurity", "Zero Trust",
+
+  // Electronics, Electrical & Hardware Engineering
+  "PCB Assembly", "PCB", "Soldering", "Wiring", "Cable Routing", "Crimping",
+  "Electrical Assembly", "Electronics", "Electrical Schematics", "Electronic Systems",
+  "Firmware", "Embedded Systems", "Hardware", "Microcontrollers", "Circuit Design",
+  "Quality Control", "Quality Assurance", "Manufacturing", "Inspection",
+  "Troubleshooting", "Maintenance", "Instrumentation", "Multimeter", "Oscilloscope",
+  "Assembly", "Medical Devices", "Robotics", "Automation", "PLC", "SCADA",
+  "AutoCAD", "SolidWorks", "CAD", "CNC", "Hardware Testing", "Component Assembly",
+
+  // Operations, Supply Chain & Project Management
+  "Project Management", "Product Management", "Supply Chain", "Logistics", "Inventory Management",
+  "Lean", "Six Sigma", "Continuous Improvement", "Process Optimization", "Root Cause Analysis",
+
+  // Marketing, Sales & Business Growth
+  "SEO", "SEM", "Google Ads", "Meta Ads", "A/B Testing", "Content Strategy", "Digital Marketing",
+  "Social Media Marketing", "CRM", "Salesforce", "HubSpot", "Lead Generation",
+  "Technical Support", "Customer Support"
 ];
 
 // Mapping of common variants to canonical skill terms
@@ -79,7 +98,28 @@ const SKILL_ALIASES = {
   "css": "css",
   "css3": "css",
   "py": "python",
-  "python": "python"
+  "python": "python",
+  "pcb": "pcb",
+  "pcba": "pcb assembly",
+  "pcb assembly": "pcb assembly",
+  "electronics": "electronics",
+  "electrical": "electrical assembly",
+  "soldering": "soldering",
+  "crimping": "crimping",
+  "firmware": "firmware",
+  "embedded": "embedded systems",
+  "hardware": "hardware",
+  "qa": "quality assurance",
+  "qc": "quality control",
+  "quality control": "quality control",
+  "quality assurance": "quality assurance",
+  "manufacturing": "manufacturing",
+  "troubleshooting": "troubleshooting",
+  "maintenance": "maintenance",
+  "project management": "project management",
+  "product management": "product management",
+  "seo": "seo",
+  "sem": "sem"
 };
 
 /** Normalizes a skill string to lowercase canonical key. */
@@ -142,6 +182,30 @@ export function extractJobSkills(job) {
     const textToScan = `${job.title || ""} ${job.description || ""}`;
     const extracted = extractSkillsFromText(textToScan);
     extracted.forEach((s) => skillsSet.add(s));
+  }
+
+  // Fallback 1: Extract bullet-point skill phrases from description if still empty
+  if (skillsSet.size === 0 && job.description) {
+    const lines = job.description.split(/\r?\n/);
+    for (const rawLine of lines) {
+      const line = rawLine.trim().replace(/^[-•*–—\d.)]+\s*/, "");
+      if (line.length >= 3 && line.length <= 60) {
+        const clean = line.replace(/^(experience with|knowledge of|ability to|understanding of|familiarity with|proficiency in|hands-on experience with|responsible for)\s+/i, "").trim();
+        if (clean.length >= 3 && clean.length <= 40) {
+          skillsSet.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+          if (skillsSet.size >= 4) break;
+        }
+      }
+    }
+  }
+
+  // Fallback 2: Extract domain keywords from job title if still empty
+  if (skillsSet.size === 0 && job.title) {
+    const titleClean = job.title.replace(/[\(\[\{].*?[\)\]\}]/g, "").trim();
+    const words = titleClean.split(/[\s\/\-,]+/).filter((w) => w.length > 2 && !/^(and|the|for|with|senior|junior|lead|manager|generalist|specialist|intern|internship|associate)$/i.test(w));
+    if (words.length > 0) {
+      skillsSet.add(words.join(" "));
+    }
   }
 
   return Array.from(skillsSet);

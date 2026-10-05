@@ -117,34 +117,10 @@ export function ResumeAnalyzerView() {
   const [analyzedAt, setAnalyzedAt] = useState(null);
   const [isCached, setIsCached] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(false);
   const [activeSkillCategory, setActiveSkillCategory] = useState("all");
   const [skillStatusFilter, setSkillStatusFilter] = useState("all");
   const fileInputRef = useRef(null);
-
-  // Load latest analysis on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function loadLatest() {
-      try {
-        const res = await API.get("/user/resume-analysis/latest");
-        if (isMounted && res.data.success && res.data.analysis) {
-          setResults(res.data.analysis);
-          setActiveFileName(res.data.fileName || "Uploaded Resume");
-          setAnalyzedAt(res.data.createdAt);
-          setIsCached(true);
-        }
-      } catch (err) {
-        // Ignore if absent or unauthenticated
-      } finally {
-        if (isMounted) setLoadingInitial(false);
-      }
-    }
-    loadLatest();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
   const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt"];

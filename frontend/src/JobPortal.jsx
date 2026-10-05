@@ -37,6 +37,7 @@ import { formatRelativeTime } from "./utils/dateParser";
 import { deduplicateFrontendJobs, mergeAndDeduplicateJobs } from "./utils/jobDeduplicator";
 import { STATIC_DEMO_JOBS } from "./utils/demoJobs";
 import { useTheme, ThemeToggle, T, DARK_THEME, LIGHT_THEME } from "./context/ThemeContext";
+import JobDescriptionMarkup from "./components/JobDescriptionMarkup";
 export const getRelativeTime = (dateStr) => {
   return formatRelativeTime(dateStr, "Recently posted");
 };
@@ -1361,7 +1362,7 @@ export function JobPortalPublic({ onAuthClick, onSignInForJob, onApplyExternalJo
                   </div>
                   <div style={{ marginBottom: 24 }}>
                     <h3 style={{ margin: "0 0 8px", color: T.text, fontSize: "1rem" }}>Description</h3>
-                    <p style={{ color: T.textMid, lineHeight: 1.6, fontSize: "0.9rem" }}>{jobDetails.description || "No detailed description provided."}</p>
+                    <JobDescriptionMarkup content={jobDetails.description} />
                   </div>
                   {(jobDetails.requirements || jobDetails.tags || []).length > 0 && <div style={{ marginBottom: 32 }}>
                       <h3 style={{ margin: "0 0 12px", color: T.text, fontSize: "1rem" }}>Requirements</h3>

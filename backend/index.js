@@ -37,7 +37,7 @@ app.use((req, res, next) => {
     "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://accounts.google.com https://api.groq.com",
+    "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://api.groq.com",
     "frame-src https://accounts.google.com",
     "object-src 'none'",
     "base-uri 'self'",
